@@ -3,43 +3,21 @@ FROM ghcr.io/linuxserver/code-server:latest
 # Switch to root for installations
 USER root
 
-# Install system dependencies
+# Install only the absolute essentials
 RUN apt-get update && apt-get install -y \
     curl \
-    wget \
-    git \
-    build-essential \
-    python3 \
-    python3-pip \
+    gnupg2 \
+    lsb-release \
     nodejs \
     npm \
-    jq \
-    vim \
-    nano \
-    htop \
-    ncdu \
-    tree \
-    ripgrep \
-    fd-find \
-    bat \
-    eza \
-    fzf \
-    tmux \
-    zsh \
-    openssh-client \
-    gnupg2 \
-    software-properties-common \
-    apt-transport-https \
-    ca-certificates \
-    lsb-release \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker CLI
+# Install Docker CLI (for docker commands)
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
     apt-get update && \
-    apt-get install -y docker-ce-cli docker-compose-plugin && \
+    apt-get install -y docker-ce-cli && \
     rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI
@@ -50,46 +28,15 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/*
 
-# Install claude-code CLI (official Anthropic version)
+# Install claude-code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
-# Install additional development tools
-RUN npm install -g \
-    typescript \
-    ts-node \
-    nodemon \
-    prettier \
-    eslint \
-    @types/node
-
-# Install Python tools
-RUN pip3 install --no-cache-dir --break-system-packages \
-    ipython \
-    jupyter \
-    black \
-    flake8 \
-    mypy \
-    pytest \
-    requests \
-    pandas \
-    numpy
-
-# Create scripts directory
-RUN mkdir -p /config/scripts
+# Create necessary directories
+RUN mkdir -p /config/scripts /config/.claude
 
 # Copy startup script
 COPY scripts/startup.sh /config/scripts/startup.sh
 RUN chmod +x /config/scripts/startup.sh
-
-# Create claude-code directory (configuration will be done manually after login)
-RUN mkdir -p /config/.claude
-
-# Add startup script to s6 services (must be done as root)
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/claude-setup && \
-    echo "oneshot" > /etc/s6-overlay/s6-rc.d/claude-setup/type && \
-    echo "/config/scripts/startup.sh" > /etc/s6-overlay/s6-rc.d/claude-setup/up && \
-    mkdir -p /etc/s6-overlay/s6-rc.d/user/contents.d && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/claude-setup
 
 # Switch back to abc user
 USER abc
