@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  code-server-claude:
+    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/docker-code-server}:latest
+    container_name: code-server-claude
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-Etc/UTC}
+      - PASSWORD=${CODE_SERVER_PASSWORD:-password} # Optional password for code-server
+      - SUDO_PASSWORD=${SUDO_PASSWORD:-password} # Optional sudo password
+      - DEFAULT_WORKSPACE=/config/workspace # Default workspace
+    volumes:
+      - ./config:/config
+      - ./workspace:/config/workspace
+      - /var/run/docker.sock:/var/run/docker.sock:ro # For Docker access
+      # Optional: Add more volume mounts as needed
+      # - ~/.ssh:/config/.ssh:ro # For SSH keys
+      # - ~/.gitconfig:/config/.gitconfig:ro # For git config
+    ports:
+      - "8443:8443"
+    restart: unless-stopped
+    # Optional: Add to enable GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    
+    # Optional: Network configuration for docker commands
+    # network_mode: host
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8443/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
