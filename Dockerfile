@@ -63,7 +63,7 @@ RUN npm install -g \
     @types/node
 
 # Install Python tools
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --break-system-packages \
     ipython \
     jupyter \
     black \
