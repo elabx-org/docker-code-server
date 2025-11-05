@@ -31,6 +31,15 @@ jobs:
       needs_build: ${{ steps.check.outputs.needs_build }}
       upstream_digest: ${{ steps.check.outputs.upstream_digest }}
     steps:
+      - name: Restore cached digest
+        id: cache-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: upstream-digest.txt
+          key: upstream-digest-${{ github.repository }}-
+          restore-keys: |
+            upstream-digest-${{ github.repository }}-
+            
       - name: Check upstream image
         id: check
         run: |
@@ -41,13 +50,14 @@ jobs:
           echo "Upstream digest: $UPSTREAM_DIGEST"
           echo "upstream_digest=$UPSTREAM_DIGEST" >> $GITHUB_OUTPUT
           
-          # Get our last built digest from cache
-          CACHE_KEY="upstream-digest-${{ github.repository }}"
-          LAST_DIGEST=$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${{ github.repository }}/actions/caches?key=${CACHE_KEY}" \
-            --jq '.actions_caches[0].key' 2>/dev/null || echo "")
+          # Get our last built digest from cache file
+          LAST_DIGEST=""
+          if [ -f upstream-digest.txt ]; then
+            LAST_DIGEST=$(cat upstream-digest.txt)
+            echo "Last known digest: $LAST_DIGEST"
+          else
+            echo "No previous digest found"
+          fi
           
           if [ "${{ github.event.inputs.force_build }}" == "true" ]; then
             echo "Force build requested"
@@ -59,8 +69,6 @@ jobs:
             echo "No upstream changes detected"
             echo "needs_build=false" >> $GITHUB_OUTPUT
           fi
-        env:
-          GH_TOKEN: ${{ github.token }}
 
   build:
     needs: check-upstream
@@ -119,12 +127,14 @@ jobs:
       - name: Save upstream digest
         if: success()
         run: |
-          # Save the upstream digest for future comparisons
           echo "${{ needs.check-upstream.outputs.upstream_digest }}" > upstream-digest.txt
-          gh actions cache delete "upstream-digest-${{ github.repository }}" --confirm 2>/dev/null || true
-          gh actions cache save upstream-digest.txt --key "upstream-digest-${{ github.repository }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
+          
+      - name: Cache upstream digest
+        if: success()
+        uses: actions/cache@v3
+        with:
+          path: upstream-digest.txt
+          key: upstream-digest-${{ github.repository }}-${{ needs.check-upstream.outputs.upstream_digest }}
 
       - name: Create release notes
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
