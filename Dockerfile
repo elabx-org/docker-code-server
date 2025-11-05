@@ -84,17 +84,18 @@ RUN chmod +x /config/scripts/startup.sh
 # Create claude-code directory (configuration will be done manually after login)
 RUN mkdir -p /config/.claude
 
+# Add startup script to s6 services (must be done as root)
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/claude-setup && \
+    echo "oneshot" > /etc/s6-overlay/s6-rc.d/claude-setup/type && \
+    echo "/config/scripts/startup.sh" > /etc/s6-overlay/s6-rc.d/claude-setup/up && \
+    mkdir -p /etc/s6-overlay/s6-rc.d/user/contents.d && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/claude-setup
+
 # Switch back to abc user
 USER abc
 
 # Set environment variables
 ENV DOCKER_HOST="unix:///var/run/docker.sock"
-
-# Add startup script to s6 services
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/claude-setup && \
-    echo "oneshot" > /etc/s6-overlay/s6-rc.d/claude-setup/type && \
-    echo "/config/scripts/startup.sh" > /etc/s6-overlay/s6-rc.d/claude-setup/up && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/claude-setup
 
 # Expose code-server port
 EXPOSE 8443
