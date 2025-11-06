@@ -1,0 +1,37 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# This script runs as root during container initialization
+# It ensures directories exist with proper ownership based on PUID/PGID
+
+echo "Initializing claude-code directories with proper permissions..."
+
+# Create directories with correct ownership
+# The PUID and PGID variables are set by LinuxServer base image
+install -d -o "${PUID}" -g "${PGID}" -m 755 /config/scripts
+install -d -o "${PUID}" -g "${PGID}" -m 755 /config/.claude
+install -d -o "${PUID}" -g "${PGID}" -m 755 /config/workspace
+
+# Copy startup script if it doesn't exist
+if [[ ! -f /config/scripts/startup.sh ]]; then
+    cp /defaults/startup.sh /config/scripts/startup.sh
+    chown "${PUID}:${PGID}" /config/scripts/startup.sh
+    chmod +x /config/scripts/startup.sh
+fi
+
+# Fix permissions on docker socket if mounted
+if [[ -S /var/run/docker.sock ]]; then
+    echo "Docker socket detected. Adding user to docker group..."
+    # Get the GID of the docker socket
+    DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+    
+    # Create docker group with the same GID if it doesn't exist
+    if ! getent group docker >/dev/null 2>&1; then
+        groupadd -g "${DOCKER_GID}" docker
+    fi
+    
+    # Add abc user to docker group
+    usermod -aG docker abc
+fi
+
+echo "Claude-code initialization complete."

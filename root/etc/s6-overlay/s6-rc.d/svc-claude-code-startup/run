@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# This runs as the abc user
+exec s6-setuidgid abc /config/scripts/startup.sh

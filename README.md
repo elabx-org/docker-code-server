@@ -58,11 +58,27 @@ docker run -d \
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `PUID` | User ID | No | 1000 |
-| `PGID` | Group ID | No | 1000 |
+| `PUID` | User ID for file permissions | No | 1000 |
+| `PGID` | Group ID for file permissions | No | 1000 |
 | `TZ` | Timezone | No | Etc/UTC |
 | `PASSWORD` | Code-server password | No | - |
 | `SUDO_PASSWORD` | Sudo password | No | - |
+
+### PUID/PGID Usage
+
+This image uses LinuxServer.io's s6-overlay init system to properly handle user permissions. The `PUID` and `PGID` environment variables control the user and group IDs that code-server runs as, ensuring proper file permissions for mounted volumes.
+
+To find your user's UID and GID:
+```bash
+id $USER
+```
+
+Example output:
+```
+uid=911(username) gid=1001(groupname) groups=1001(groupname),998(docker)
+```
+
+Then set `PUID=911` and `PGID=1001` in your environment.
 
 ## Volume Mounts
 

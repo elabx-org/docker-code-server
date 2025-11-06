@@ -31,15 +31,15 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 # Install claude-code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
-# Create necessary directories
-RUN mkdir -p /config/scripts /config/.claude
+# Create s6 service directories (these are in the container, not /config)
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/init-claude-code-config/dependencies.d && \
+    mkdir -p /etc/s6-overlay/s6-rc.d/user/contents.d
 
-# Copy startup script
-COPY scripts/startup.sh /config/scripts/startup.sh
-RUN chmod +x /config/scripts/startup.sh
+# Copy the init scripts and defaults for claude-code setup
+# The --chown=root:root ensures proper ownership for s6 scripts
+COPY --chown=root:root root/ /
 
-# Switch back to abc user
-USER abc
+# No need to switch user - LinuxServer base handles this
 
 # Set environment variables
 ENV DOCKER_HOST="unix:///var/run/docker.sock"
