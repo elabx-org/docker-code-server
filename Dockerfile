@@ -28,8 +28,13 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/*
 
-# Install claude-code CLI
-RUN npm install -g @anthropic-ai/claude-code
+# Install claude-code CLI with proper permissions
+# The npm global directory needs to be accessible by the abc user
+RUN npm install -g @anthropic-ai/claude-code && \
+    # Ensure the global npm modules are readable by all users
+    chmod -R 755 /usr/local/lib/node_modules/@anthropic-ai/claude-code && \
+    # Ensure the claude binary is executable by all users
+    chmod 755 /usr/local/bin/claude
 
 # Create s6 service directories (these are in the container, not /config)
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/init-claude-code-config/dependencies.d && \
