@@ -6,19 +6,25 @@
 
 echo "Initializing claude-code specific directories..."
 
-# Only create application-specific directories
-# Let LinuxServer base image handle overall /config ownership
-# We just ensure our specific directories exist - ownership will be handled by base image
+# Create application-specific directories with proper ownership
+# We need to explicitly set ownership since this runs after base image's init
 mkdir -p /config/scripts
 mkdir -p /config/.claude
 mkdir -p /config/workspace
 mkdir -p /config/.npm
 
+# Set ownership on directories we created using PUID/PGID from environment
+echo "Setting ownership on claude-code directories (PUID=${PUID}, PGID=${PGID})..."
+chown -R "${PUID}:${PGID}" /config/.claude
+chown -R "${PUID}:${PGID}" /config/.npm
+chown -R "${PUID}:${PGID}" /config/scripts
+chown -R "${PUID}:${PGID}" /config/workspace
+
 # Copy startup script if it doesn't exist
-# Base image will handle ownership via lsiown
 if [[ ! -f /config/scripts/startup.sh ]]; then
     cp /defaults/startup.sh /config/scripts/startup.sh
     chmod +x /config/scripts/startup.sh
+    chown "${PUID}:${PGID}" /config/scripts/startup.sh
 fi
 
 # Fix permissions on docker socket if mounted
@@ -36,4 +42,4 @@ if [[ -S /var/run/docker.sock ]]; then
     usermod -aG docker abc
 fi
 
-echo "Claude-code directories created. Base image will handle ownership."
+echo "Claude-code directories created with proper ownership."

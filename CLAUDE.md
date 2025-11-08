@@ -1,49 +1,24 @@
-# Docker Code-Server with Claude Code - Project Documentation
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-This is a Docker-based development environment that combines LinuxServer's code-server image with Claude Code CLI and essential development tools. The project provides a web-based VS Code interface with integrated Claude AI assistance capabilities.
+A Docker-based development environment that combines LinuxServer's code-server image with Claude Code CLI. This is a **Dockerfile project** - not a traditional application with package.json or requirements.txt. The primary deliverable is a container image, not compiled code.
 
-### Key Components:
-- **Base Image**: LinuxServer's code-server (ghcr.io/linuxserver/code-server:latest)
-- **Claude Code**: Anthropic's CLI tool for AI-powered coding assistance
-- **Development Tools**: Docker CLI, GitHub CLI, Node.js, npm, and various utilities
-- **Init System**: Uses s6-overlay for proper process supervision and permissions handling
+## Build and Test Commands
 
-## Project Structure
-
-```
-docker-code-server/
-├── Dockerfile                 # Multi-stage Docker build configuration
-├── docker-compose.yml         # Docker Compose configuration
-├── README.md                  # User-facing documentation
-├── .dockerignore             # Docker build exclusions
-├── root/                     # s6-overlay service definitions
-│   ├── defaults/
-│   │   └── startup.sh        # User initialization script
-│   └── etc/s6-overlay/
-│       └── s6-rc.d/          # s6 service definitions
-│           ├── init-claude-code-config/  # Root initialization service
-│           └── svc-claude-code-startup/  # User startup service
-├── config/                   # Empty, used as mount point
-├── scripts/                  # Empty, populated at runtime
-└── CLAUDE.md                 # This file
-```
-
-## Build and Development Commands
-
-### Building the Image
+### Build the Docker image locally
 ```bash
 docker build -t code-server-claude .
 ```
 
-### Running with Docker Compose
+### Run the container
 ```bash
+# Using docker-compose (recommended)
 docker-compose up -d
-```
 
-### Running with Docker CLI
-```bash
+# Using docker run
 docker run -d \
   --name=code-server-claude \
   -e PUID=1000 \
@@ -53,35 +28,89 @@ docker run -d \
   -v ./config:/config \
   -v ./workspace:/config/workspace \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  ghcr.io/yourusername/docker-code-server:latest
+  code-server-claude
 ```
 
-### Accessing the Environment
-- Web Interface: http://localhost:8443
-- Terminal: Available through the web interface
-- Claude Code: Run `claude auth login` in terminal to authenticate
+### Check container logs
+```bash
+docker logs code-server-claude
+```
 
-## Technical Details
+### Access the environment
+- Web interface: http://localhost:8443
+- Terminal: Open terminal in web interface
+- Claude authentication: Run `claude auth login` in terminal
 
-### Initialization Process
+## Architecture
 
-The container uses LinuxServer's s6-overlay init system with two custom services:
+### Init System: s6-overlay Integration
 
-1. **init-claude-code-config** (runs as root, after LinuxServer's init-adduser):
-   - Creates application-specific directories (/config/.claude, /config/.npm, /config/scripts, /config/workspace)
-   - Sets up Docker socket access by adding user to docker group
-   - Copies default startup script if not present
-   - Relies on LinuxServer base image to handle PUID/PGID ownership of /config
+This project uses LinuxServer.io's s6-overlay init system with **two custom services** that integrate into the base image's service bundle:
 
-2. **svc-claude-code-startup** (runs as user):
-   - Executes user-level initialization
-   - Sets up default git configuration
-   - Verifies Claude Code and Docker access
+**1. init-claude-code-config** (runs as root, oneshot)
+- **Dependencies**: Runs after `init-adduser`, `init-config`, and `init-mods-end` from base image
+- **Location**: `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run`
+- **Purpose**: Creates application directories and configures Docker socket access
+- **Actions**:
+  - Creates `/config/.claude`, `/config/.npm`, `/config/scripts`, `/config/workspace`
+  - Sets ownership on created directories using `chown "${PUID}:${PGID}"`
+  - Adds `abc` user to docker group for socket access
+  - Copies default startup script to `/config/scripts/startup.sh`
+- **Note**: Must explicitly set ownership since it runs after base image's init phase
 
-**Important Note on s6-overlay Integration:**
-The Dockerfile uses `touch` commands to add custom services to the base image's `user` bundle rather than copying a complete user bundle directory. This prevents overwriting the base image's essential init services (including PUID/PGID handling). The custom services are added after copying the service definitions, ensuring both base and custom services execute properly.
+**2. svc-claude-code-startup** (runs as user `abc`, oneshot)
+- **Dependencies**: Runs after `init-claude-code-config`
+- **Location**: `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run`
+- **Purpose**: User-level initialization
+- **Actions**: Executes `/config/scripts/startup.sh` as the `abc` user
+- **Script tasks**: Sets up default git config, verifies Claude Code and Docker access
 
-### Environment Variables
+### Critical Implementation Detail: Service Bundle Integration
+
+In `Dockerfile:45-46`, custom services are added to the base image's `user` bundle using:
+```dockerfile
+RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup
+```
+
+**Why this matters**:
+- LinuxServer's base image has its own services in the `user` bundle, including critical PUID/PGID handling
+- Copying a complete `user/contents.d/` directory would overwrite those services and break permission management
+- Using `touch` adds our services alongside the base image's services rather than replacing them
+- This ensures both base image services AND custom services execute during container initialization
+
+### PUID/PGID Permission Model
+
+The base image handles PUID/PGID ownership of existing `/config` contents during its init phase. However, custom services that run AFTER the base image's init must explicitly set ownership on any new directories they create:
+- Use `mkdir -p` to create directories
+- Use `chown "${PUID}:${PGID}"` to set ownership on created directories
+- PUID and PGID environment variables are available via the `with-contenv` shebang
+- This is necessary because our init service runs after the base image's ownership pass
+
+## File Structure
+
+```
+root/
+├── defaults/
+│   └── startup.sh                              # User startup script template
+└── etc/s6-overlay/s6-rc.d/
+    ├── init-claude-code-config/                # Root init service
+    │   ├── dependencies.d/                     # Runs after these base services
+    │   │   ├── init-adduser
+    │   │   ├── init-config
+    │   │   └── init-mods-end
+    │   ├── run                                 # The actual init script
+    │   ├── type                                # "oneshot"
+    │   └── up                                  # Empty (successful completion)
+    └── svc-claude-code-startup/                # User startup service
+        ├── dependencies.d/
+        │   └── init-claude-code-config         # Runs after root init
+        ├── run                                 # Executes startup.sh as abc user
+        ├── type                                # "oneshot"
+        └── up                                  # Empty (successful completion)
+```
+
+## Key Environment Variables
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
@@ -92,84 +121,45 @@ The Dockerfile uses `touch` commands to add custom services to the base image's 
 | SUDO_PASSWORD | Sudo password for terminal | - |
 | DEFAULT_WORKSPACE | Default workspace path | /config/workspace |
 
-### Volume Mounts
+## Volume Mounts
 
-| Path | Purpose | Notes |
-|------|---------|-------|
-| /config | Persistent configuration | Contains .claude/, scripts/, and user data |
+| Container Path | Purpose | Notes |
+|----------------|---------|-------|
+| /config | Persistent configuration | All user data, .claude/ config |
 | /config/workspace | Project workspace | Default working directory |
 | /var/run/docker.sock | Docker socket | Read-only, for Docker CLI access |
 
-### Installed Tools
-
-**Core Development Tools:**
-- Docker CLI (docker-ce-cli)
-- GitHub CLI (gh)
-- Node.js & npm
-- Git
-
-**Claude Integration:**
-- claude-code CLI (@anthropic-ai/claude-code npm package)
-- Authentication via `claude auth login`
-- Configuration stored in /config/.claude/
-
-## Security Considerations
-
-1. **Docker Socket**: Mounted read-only by default. User added to docker group for access.
-2. **File Permissions**: Uses PUID/PGID for proper ownership of mounted volumes.
-3. **Authentication**: Claude Code requires manual authentication via web browser.
-4. **Network**: Runs on port 8443, should be secured with proper firewall rules.
-
 ## Development Workflow
 
-### For Container Development:
-1. Modify Dockerfile or s6 service scripts
-2. Build locally: `docker build -t code-server-claude .`
-3. Test with docker-compose
-4. Submit changes via GitHub PR
+When modifying this container:
 
-### For Using the Container:
-1. Start container with docker-compose
-2. Access web interface at http://localhost:8443
-3. Open terminal and run `claude auth login`
-4. Start coding with Claude assistance
+1. **For Dockerfile changes**: Build locally, test with docker-compose, verify init sequence in logs
+2. **For s6 service changes**:
+   - Modify scripts in `root/etc/s6-overlay/s6-rc.d/`
+   - Check dependencies are correct
+   - Verify service runs at expected stage (root vs user context)
+   - Never copy complete `user/contents.d/` directory in Dockerfile
+3. **For startup script changes**: Modify `root/defaults/startup.sh`
+4. **Testing**: Check container logs for init sequence, verify permissions with `ls -la /config/`
 
-## GitHub Actions Integration
+## Common Issues
 
-The project includes workflows for:
-- Automated builds on upstream image updates
-- Multi-architecture support (AMD64, ARM64)
-- Publishing to GitHub Container Registry
-- Layer caching for faster builds
+### Claude Code authentication fails
+- Run `claude auth login` manually in the terminal
+- Check `/config/.claude/` exists and has correct ownership
 
-## Common Issues and Solutions
+### Docker commands fail with permission denied
+- Verify `/var/run/docker.sock` is mounted
+- Check user is in docker group: `groups` should show `docker`
+- Service `init-claude-code-config` should add user to group at init
 
-### Claude Code Authentication
-- Issue: Can't authenticate with Claude
-- Solution: Run `claude auth login` and follow browser prompts
+### File permission issues on mounted volumes
+- Verify PUID/PGID match host user: `id $USER` on host
+- Check base image's init ran: look for "GID/UID" messages in container logs
+- Verify init-claude-code-config set ownership: look for "Setting ownership" message in logs
+- If `/config/.claude` or other dirs are owned by root, the init service needs to run `chown`
 
-### Docker Commands Not Working
-- Issue: Permission denied on docker commands
-- Solution: Verify docker socket is mounted and user is in docker group
-
-### File Permission Issues
-- Issue: Can't write to mounted volumes
-- Solution: Adjust PUID/PGID to match host user (`id $USER`)
-
-## Notes for AI Assistants
-
-When working with this codebase:
-1. The container uses s6-overlay for init - services must follow s6 conventions
-2. All user-facing directories should respect PUID/PGID settings
-3. Claude Code is installed via npm globally, not as a binary
-4. Docker socket access requires proper group membership setup
-5. The base image handles most user/permission management automatically
-6. **Critical:** Never copy a complete `user/contents.d/` directory in the Dockerfile as it will overwrite the base image's service bundle and break PUID/PGID functionality. Always use `RUN touch` commands to add custom services to the existing bundle
-
-## Project Type: Docker Development Environment
-
-This is a Dockerfile project that creates a development container. Key considerations:
-- Not a traditional application with package.json or requirements.txt
-- Configuration is done through environment variables and volume mounts
-- No build/test commands beyond Docker build
-- Primary purpose is providing an integrated development environment
+### Changes to s6 services not taking effect
+- Rebuild image completely: `docker-compose build --no-cache`
+- Verify services added to user bundle with `touch` command in Dockerfile
+- Check for typos in dependency file names
