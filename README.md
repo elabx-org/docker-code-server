@@ -108,19 +108,31 @@ Once the container is running:
 
 Happy Coder enables remote monitoring and control of Claude Code from your mobile device:
 
-1. **Setup in container**: Authentication is the same as Claude Code
+1. **Authenticate Claude Code** (if not already done):
+   ```bash
+   claude setup-token
+   ```
+
+2. **Download the mobile app**: [iOS App Store](https://apps.apple.com/app/happy-coder), Google Play, or https://app.happy.engineering
+
+3. **Pair CLI with mobile app**:
+   ```bash
+   # Generate QR code for pairing
+   happy --auth
+   ```
+   Scan the QR code with your mobile app to connect
+
+4. **Start using Happy**:
    ```bash
    # Run happy instead of claude
    happy
    ```
 
-2. **Mobile app**: Download Happy Coder from [iOS App Store](https://apps.apple.com/app/happy-coder), Google Play, or use the web version
-
-3. **Features**:
-   - Monitor Claude Code sessions remotely
-   - Receive push notifications when Claude needs permissions
-   - Switch seamlessly between mobile and desktop control
-   - End-to-end encryption for code security
+**Features**:
+- Monitor Claude Code sessions remotely
+- Receive push notifications when Claude needs permissions
+- Switch seamlessly between mobile and desktop control (press any key to return to desktop)
+- End-to-end encryption for code security
 
 See the [CLAUDE.md](CLAUDE.md#remote-access-with-happy-coder) for detailed usage instructions.
 

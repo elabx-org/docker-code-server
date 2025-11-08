@@ -160,20 +160,33 @@ happy
 ```
 
 ### Setup
-1. **In the container terminal**: Authentication works the same as Claude Code
-   ```bash
-   # Authenticate Claude (if not already done)
-   claude setup-token
 
+1. **Authenticate Claude Code** (if not already done):
+   ```bash
+   claude setup-token
+   ```
+
+2. **Download the mobile app**:
+   - iPhone/iPad: [iOS App Store](https://apps.apple.com/app/happy-coder)
+   - Android: Google Play
+   - Web: https://app.happy.engineering
+
+3. **Pair your CLI with the mobile app**:
+   ```bash
+   # Generate QR code for pairing
+   happy --auth
+   ```
+   - The command displays a QR code and secret code
+   - Scan the QR code with your mobile app to establish the connection
+   - Alternatively, manually enter the secret code in the app
+
+4. **Start using Happy**:
+   ```bash
    # Run happy instead of claude
    happy
    ```
 
-2. **On your mobile device**:
-   - Download Happy Coder from the [iOS App Store](https://apps.apple.com/app/happy-coder), Google Play, or use the web version
-   - Connect to your session
-
-3. **Control switching**:
+5. **Control switching**:
    - Press any key on your desktop keyboard to take back control from mobile
    - The session seamlessly switches between local and remote mode
 
