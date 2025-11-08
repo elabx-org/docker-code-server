@@ -36,13 +36,14 @@ RUN npm install -g @anthropic-ai/claude-code && \
     # Ensure the claude binary is executable by all users
     chmod 755 /usr/local/bin/claude
 
-# Create s6 service directories (these are in the container, not /config)
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/init-claude-code-config/dependencies.d && \
-    mkdir -p /etc/s6-overlay/s6-rc.d/user/contents.d
-
 # Copy the init scripts and defaults for claude-code setup
 # The --chown=root:root ensures proper ownership for s6 scripts
 COPY --chown=root:root root/ /
+
+# Add our custom services to the user bundle (don't overwrite the base image's bundle)
+# This ensures both base image and custom services run during initialization
+RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup
 
 # No need to switch user - LinuxServer base handles this
 

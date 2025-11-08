@@ -78,6 +78,9 @@ The container uses LinuxServer's s6-overlay init system with two custom services
    - Sets up default git configuration
    - Verifies Claude Code and Docker access
 
+**Important Note on s6-overlay Integration:**
+The Dockerfile uses `touch` commands to add custom services to the base image's `user` bundle rather than copying a complete user bundle directory. This prevents overwriting the base image's essential init services (including PUID/PGID handling). The custom services are added after copying the service definitions, ensuring both base and custom services execute properly.
+
 ### Environment Variables
 
 | Variable | Purpose | Default |
@@ -161,6 +164,7 @@ When working with this codebase:
 3. Claude Code is installed via npm globally, not as a binary
 4. Docker socket access requires proper group membership setup
 5. The base image handles most user/permission management automatically
+6. **Critical:** Never copy a complete `user/contents.d/` directory in the Dockerfile as it will overwrite the base image's service bundle and break PUID/PGID functionality. Always use `RUN touch` commands to add custom services to the existing bundle
 
 ## Project Type: Docker Development Environment
 
