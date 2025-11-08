@@ -41,6 +41,7 @@ docker logs code-server-claude
 - Terminal: Open terminal in web interface
 - Claude authentication: Run `claude setup-token` in terminal
 - GitHub authentication: Run `gh auth login` in terminal
+- Happy Coder (optional): Run `happy` instead of `claude` for remote mobile access
 
 ## Architecture
 
@@ -136,6 +137,51 @@ root/
 | /config | Persistent configuration | All user data, .claude/ config |
 | /config/workspace | Project workspace | Default working directory |
 | /var/run/docker.sock | Docker socket | Read-only, for Docker CLI access |
+
+## Remote Access with Happy Coder
+
+This container includes [Happy Coder](https://github.com/slopus/happy), which enables remote monitoring and control of Claude Code sessions from mobile devices with end-to-end encryption.
+
+### Features
+- Monitor Claude Code sessions from iOS, Android, or web
+- Receive push notifications when Claude needs permissions or encounters errors
+- Seamlessly switch between mobile and desktop control
+- End-to-end encryption keeps your code secure
+
+### Usage
+Instead of running `claude`, use the `happy` wrapper:
+
+```bash
+# Standard usage
+happy
+
+# The happy wrapper works exactly like claude but adds remote capabilities
+# Press any key on your desktop to return control from mobile
+```
+
+### Setup
+1. **In the container terminal**: Authentication works the same as Claude Code
+   ```bash
+   # Authenticate Claude (if not already done)
+   claude setup-token
+
+   # Run happy instead of claude
+   happy
+   ```
+
+2. **On your mobile device**:
+   - Download Happy Coder from the [iOS App Store](https://apps.apple.com/app/happy-coder), Google Play, or use the web version
+   - Connect to your session
+
+3. **Control switching**:
+   - Press any key on your desktop keyboard to take back control from mobile
+   - The session seamlessly switches between local and remote mode
+
+### When to Use Happy Coder
+- Monitor long-running AI tasks while away from your desk
+- Get notified when Claude needs permission to proceed
+- Review and approve changes from your phone
+- Useful for keeping tabs on containerized development sessions
 
 ## VS Code Extensions
 

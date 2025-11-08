@@ -15,9 +15,15 @@ fi
 # Check if claude-code is available
 if command -v claude >/dev/null 2>&1; then
     echo "Claude-code CLI is installed and ready for manual login"
-    echo "To authenticate, run: claude auth login"
+    echo "To authenticate, run: claude setup-token"
 else
     echo "Warning: claude-code CLI not found"
+fi
+
+# Check if happy-coder is available
+if command -v happy >/dev/null 2>&1; then
+    echo "Happy Coder is installed for remote mobile access"
+    echo "Usage: Run 'happy' instead of 'claude' to enable remote monitoring"
 fi
 
 # Docker socket status

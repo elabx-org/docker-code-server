@@ -6,6 +6,7 @@ A Docker image that enhances the [linuxserver/code-server](https://github.com/li
 
 - **Base**: Latest linuxserver/code-server image
 - **Claude Code**: Full terminal version of claude-code installed and configured
+- **Happy Coder**: Remote mobile access to Claude Code sessions with push notifications
 - **Development Tools**:
   - Docker CLI & Docker Compose
   - GitHub CLI (gh)
@@ -102,6 +103,26 @@ Once the container is running:
    claude auth login
    ```
 3. Run `claude` to start using the CLI
+
+## Using Happy Coder (Remote Access)
+
+Happy Coder enables remote monitoring and control of Claude Code from your mobile device:
+
+1. **Setup in container**: Authentication is the same as Claude Code
+   ```bash
+   # Run happy instead of claude
+   happy
+   ```
+
+2. **Mobile app**: Download Happy Coder from [iOS App Store](https://apps.apple.com/app/happy-coder), Google Play, or use the web version
+
+3. **Features**:
+   - Monitor Claude Code sessions remotely
+   - Receive push notifications when Claude needs permissions
+   - Switch seamlessly between mobile and desktop control
+   - End-to-end encryption for code security
+
+See the [CLAUDE.md](CLAUDE.md#remote-access-with-happy-coder) for detailed usage instructions.
 
 ## GitHub Authentication
 
