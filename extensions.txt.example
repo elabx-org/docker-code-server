@@ -1,0 +1,31 @@
+# VS Code Extensions
+# Place this file at ./config/extensions.txt to automatically install extensions on startup
+# One extension ID per line
+# Lines starting with # are ignored
+
+# Python Development
+# ms-python.python
+# ms-python.vscode-pylance
+
+# JavaScript/TypeScript
+# dbaeumer.vscode-eslint
+# esbenp.prettier-vscode
+
+# Git
+# eamodio.gitlens
+
+# Docker
+# ms-azuretools.vscode-docker
+
+# Remote Development
+# ms-vscode-remote.remote-ssh
+
+# Themes
+# github.github-vscode-theme
+
+# Markdown
+# yzhang.markdown-all-in-one
+
+# General Utilities
+# christian-kohler.path-intellisense
+# usernamehw.errorlens

@@ -93,9 +93,84 @@ Then set `PUID=911` and `PGID=1001` in your environment.
 Once the container is running:
 
 1. Open the integrated terminal in code-server
-2. Run `claude-code auth login` to authenticate with your Claude.ai account
-3. Follow the prompts to complete authentication
-4. Run `claude-code` to start using the CLI with your subscription
+2. Authenticate with Claude Code:
+   ```bash
+   # Recommended: Token-based authentication (works with remote access)
+   claude setup-token
+
+   # Alternative: OAuth login (only works well when accessing via localhost)
+   claude auth login
+   ```
+3. Run `claude` to start using the CLI
+
+## GitHub Authentication
+
+### Method 1: GitHub CLI (Recommended)
+```bash
+gh auth login
+```
+Follow the prompts and select "Login with a web browser". The CLI will display a device code for you to paste during authentication.
+
+### Method 2: SSH Keys
+```bash
+# Copy your SSH keys to the config directory
+cp ~/.ssh/id_rsa ./config/.ssh/
+cp ~/.ssh/id_rsa.pub ./config/.ssh/
+
+# In the container terminal, configure git
+git config --global user.name "Your Name"
+git config --global user.email "your@email.com"
+```
+
+### Method 3: VS Code's Built-in GitHub Auth
+1. Click the **Accounts** icon in the bottom-left of code-server
+2. Select **"Sign in with GitHub"**
+3. Follow the OAuth flow
+
+**Note:** VS Code's GitHub authentication only works for UI features, not terminal commands.
+
+## Installing VS Code Extensions
+
+You can automatically install VS Code extensions on container startup using two methods:
+
+### Method 1: Environment Variable (Simple)
+
+Set the `VSCODE_EXTENSIONS` variable in your `.env` file with a comma-separated list:
+
+```bash
+VSCODE_EXTENSIONS=ms-python.python,dbaeumer.vscode-eslint,eamodio.gitlens
+```
+
+### Method 2: Extensions File (Recommended for many extensions)
+
+Create a file at `./config/extensions.txt` with one extension ID per line:
+
+```bash
+# Copy the example file
+cp extensions.txt.example config/extensions.txt
+
+# Edit to add your extensions
+nano config/extensions.txt
+```
+
+Example `extensions.txt`:
+```
+# Python Development
+ms-python.python
+
+# JavaScript/TypeScript
+dbaeumer.vscode-eslint
+esbenp.prettier-vscode
+
+# Git
+eamodio.gitlens
+```
+
+**Notes:**
+- Extensions are installed from the [Open VSX marketplace](https://open-vsx.org/)
+- Already installed extensions are skipped automatically
+- Extensions persist in `/config/.local/share/code-server/extensions`
+- You can combine both methods - environment variable and file
 
 ## Development
 

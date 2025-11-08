@@ -30,5 +30,40 @@ if [ -S /var/run/docker.sock ]; then
     fi
 fi
 
+# Install VS Code extensions if specified
+install_extensions() {
+    local extensions="$1"
+    if [ -n "$extensions" ]; then
+        echo "Installing VS Code extensions..."
+        IFS=',' read -ra EXT_ARRAY <<< "$extensions"
+        for ext in "${EXT_ARRAY[@]}"; do
+            ext=$(echo "$ext" | xargs)  # trim whitespace
+            if [ -n "$ext" ]; then
+                echo "  Installing: $ext"
+                code-server --install-extension "$ext" 2>&1 | grep -v "already installed" || true
+            fi
+        done
+    fi
+}
+
+# Install extensions from environment variable
+if [ -n "$VSCODE_EXTENSIONS" ]; then
+    install_extensions "$VSCODE_EXTENSIONS"
+fi
+
+# Install extensions from file if it exists
+if [ -f /config/extensions.txt ]; then
+    echo "Found extensions.txt, installing extensions from file..."
+    while IFS= read -r ext || [ -n "$ext" ]; do
+        # Skip empty lines and comments
+        [[ -z "$ext" || "$ext" =~ ^[[:space:]]*# ]] && continue
+        ext=$(echo "$ext" | xargs)  # trim whitespace
+        if [ -n "$ext" ]; then
+            echo "  Installing: $ext"
+            code-server --install-extension "$ext" 2>&1 | grep -v "already installed" || true
+        fi
+    done < /config/extensions.txt
+fi
+
 echo "Claude-code environment initialized successfully!"
 echo "Workspace directory: /config/workspace"

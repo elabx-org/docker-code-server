@@ -39,7 +39,8 @@ docker logs code-server-claude
 ### Access the environment
 - Web interface: http://localhost:8443
 - Terminal: Open terminal in web interface
-- Claude authentication: Run `claude auth login` in terminal
+- Claude authentication: Run `claude setup-token` in terminal
+- GitHub authentication: Run `gh auth login` in terminal
 
 ## Architecture
 
@@ -63,7 +64,12 @@ This project uses LinuxServer.io's s6-overlay init system with **two custom serv
 - **Location**: `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run`
 - **Purpose**: User-level initialization
 - **Actions**: Executes `/config/scripts/startup.sh` as the `abc` user
-- **Script tasks**: Sets up default git config, verifies Claude Code and Docker access
+- **Script tasks**:
+  - Sets up default git config
+  - Verifies Claude Code and Docker access
+  - Installs VS Code extensions from `VSCODE_EXTENSIONS` env var or `/config/extensions.txt` file
+  - Extensions are installed via `code-server --install-extension <id>`
+  - Already installed extensions are skipped for efficiency
 
 ### Critical Implementation Detail: Service Bundle Integration
 
@@ -120,6 +126,8 @@ root/
 | PASSWORD | Code-server web password | - |
 | SUDO_PASSWORD | Sudo password for terminal | - |
 | DEFAULT_WORKSPACE | Default workspace path | /config/workspace |
+| PROXY_DOMAIN | Domain for subdomain proxying | - |
+| VSCODE_EXTENSIONS | Comma-separated list of extension IDs | - |
 
 ## Volume Mounts
 
@@ -128,6 +136,33 @@ root/
 | /config | Persistent configuration | All user data, .claude/ config |
 | /config/workspace | Project workspace | Default working directory |
 | /var/run/docker.sock | Docker socket | Read-only, for Docker CLI access |
+
+## VS Code Extensions
+
+Extensions can be installed automatically on container startup:
+
+### Method 1: Environment Variable
+Set `VSCODE_EXTENSIONS` in `.env`:
+```bash
+VSCODE_EXTENSIONS=ms-python.python,dbaeumer.vscode-eslint,eamodio.gitlens
+```
+
+### Method 2: Extensions File
+Create `/config/extensions.txt` with one extension ID per line:
+```
+# Python
+ms-python.python
+
+# Git
+eamodio.gitlens
+```
+
+**Technical details:**
+- Extensions installed via `code-server --install-extension <id>`
+- Installed during startup script execution (runs as `abc` user)
+- Extensions stored in `/config/.local/share/code-server/extensions`
+- Installation happens in `root/defaults/startup.sh:33-66`
+- Already installed extensions skipped automatically
 
 ## Development Workflow
 
@@ -141,12 +176,35 @@ When modifying this container:
    - Never copy complete `user/contents.d/` directory in Dockerfile
 3. **For startup script changes**: Modify `root/defaults/startup.sh`
 4. **Testing**: Check container logs for init sequence, verify permissions with `ls -la /config/`
+5. **For extension changes**: Test with small extension list first, check logs for installation output
 
 ## Common Issues
 
+### CLI OAuth redirects fail when accessing via domain
+**Problem:** When accessing code-server through a custom domain, `gh auth login` or `claude auth login` try to redirect to `localhost:PORT` which fails
+
+**Why this happens:**
+1. CLI tools start OAuth callback servers on the container's `localhost:RANDOM_PORT`
+2. They send the callback URL `http://localhost:PORT/callback` to the OAuth provider (GitHub/Claude)
+3. After authentication, the provider redirects your browser to that URL
+4. Your browser tries to connect to YOUR machine's localhost, not the container's localhost
+5. The connection fails because the callback server is inside the container
+
+**Why we can't fix this at the image level:**
+- CLI tools don't expose configuration for custom callback URLs
+- The OAuth provider only knows about the hardcoded `localhost:PORT` URL
+- We can't intercept or modify the callback URL without modifying the CLI tools themselves
+
+**Solutions (use these instead):**
+- **GitHub CLI:** Use `gh auth login` - automatically uses device flow (copy/paste code)
+- **Claude Code:** Use `claude setup-token` - token-based auth without OAuth callbacks
+- **SSH Keys (GitHub only):** Copy SSH keys to `/config/.ssh/` and configure git manually
+
+**The startup script now provides helpful guidance** when you open a terminal
+
 ### Claude Code authentication fails
-- Run `claude auth login` manually in the terminal
-- Check `/config/.claude/` exists and has correct ownership
+- Use `claude setup-token` for token-based authentication
+- Check `/config/.claude/` exists and has correct ownership (run `ls -la /config/.claude`)
 
 ### Docker commands fail with permission denied
 - Verify `/var/run/docker.sock` is mounted
@@ -163,3 +221,10 @@ When modifying this container:
 - Rebuild image completely: `docker-compose build --no-cache`
 - Verify services added to user bundle with `touch` command in Dockerfile
 - Check for typos in dependency file names
+
+### Extensions not installing
+- Check container logs: `docker logs code-server-claude | grep -i extension`
+- Verify extension IDs are correct (check [Open VSX](https://open-vsx.org/))
+- Check `/config/extensions.txt` has correct format (one per line, no commas)
+- Manually test: `docker exec -it code-server-claude code-server --install-extension <id>`
+- Extensions persist in `/config/.local/share/code-server/extensions`

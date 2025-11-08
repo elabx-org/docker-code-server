@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:coder.com)",
+      "WebFetch(domain:cli.github.com)",
+      "WebFetch(domain:code.claude.com)",
+      "Bash(claude auth --help:*)",
+      "Bash(claude setup-token:*)",
+      "Bash(gh auth login:*)",
+      "WebFetch(domain:code.visualstudio.com)",
+      "Bash(command -v code-server:*)"
     ],
     "deny": [],
     "ask": []
