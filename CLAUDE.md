@@ -276,6 +276,23 @@ When modifying this container:
 4. **Testing**: Check container logs for init sequence, verify permissions with `ls -la /config/`
 5. **For extension changes**: Test with small extension list first, check logs for installation output
 
+### GitHub Workflow Build Behavior
+
+The `.github/workflows/build.yml` workflow automatically builds and pushes images with the following logic:
+
+**When builds happen:**
+- **Push to main/develop**: Always builds (regardless of upstream changes)
+- **Pull requests**: Always builds (for testing)
+- **Manual trigger**: Respects `force_build` parameter
+- **Scheduled (daily at 2 AM UTC)**: Only builds if upstream `linuxserver/code-server:latest` has changed
+
+**Why this design:**
+- Code changes (push/PR) should always trigger builds to test your modifications
+- Scheduled runs avoid unnecessary daily builds when nothing has changed
+- Manual triggers give you control when needed
+
+**Location**: `.github/workflows/build.yml:62-75`
+
 ## Common Issues
 
 ### CLI OAuth redirects fail when accessing via domain
