@@ -35,6 +35,7 @@ RUN apt-get update && \
 
 # Copy the init scripts and defaults for claude-code setup
 # The --chown=root:root ensures proper ownership for s6 scripts
+# Updated: 2025-11-09 - Fixed Claude Code installation detection
 COPY --chown=root:root root/ /
 
 # Add our custom services to the user bundle (don't overwrite the base image's bundle)
