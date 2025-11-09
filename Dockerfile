@@ -33,6 +33,10 @@ RUN apt-get update && \
     apt-get install -y build-essential python3 && \
     rm -rf /var/lib/apt/lists/*
 
+# Cache-busting ARG - changes every build to force fresh COPY
+ARG CACHEBUST=1
+RUN echo "Cache bust: $CACHEBUST"
+
 # Copy the init scripts and defaults for claude-code setup
 # The --chown=root:root ensures proper ownership for s6 scripts
 # Updated: 2025-11-09 - Fixed Claude Code installation detection
