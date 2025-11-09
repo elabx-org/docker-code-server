@@ -26,6 +26,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/*
 
+# Install build dependencies for npm packages with native modules
+RUN apt-get update && \
+    apt-get install -y build-essential python3 && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install claude-code CLI and happy-coder with proper permissions
 # Initial installation as root for speed, but will be reinstalled by abc user
 # in /config/.npm-global on first container start (see startup.sh)
