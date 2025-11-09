@@ -17,10 +17,18 @@ fi
 export PATH="/config/.npm-global/bin:$PATH"
 npm config set prefix /config/.npm-global
 
-# Install Claude Code to /config/.npm-global if not already there
-if [ ! -f /config/.npm-global/bin/claude ]; then
+# Install Claude Code to /config/.npm-global if not already functional
+# Check if claude binary exists AND is executable
+if [ ! -x /config/.npm-global/bin/claude ]; then
     echo "Installing Claude Code to /config/.npm-global for auto-updates..."
-    npm install -g @anthropic-ai/claude-code happy-coder
+    npm install -g @anthropic-ai/claude-code happy-coder 2>&1 | tail -20
+
+    # Verify installation succeeded
+    if [ -x /config/.npm-global/bin/claude ]; then
+        echo "✓ Claude Code installed successfully"
+    else
+        echo "✗ Claude Code installation failed - check logs above"
+    fi
 fi
 
 # Add /config/.npm-global/bin to PATH permanently for all shells

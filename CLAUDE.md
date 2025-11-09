@@ -61,7 +61,7 @@ This project uses LinuxServer.io's s6-overlay init system with **two custom serv
 - **Location**: `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run`
 - **Purpose**: Creates application directories and configures Docker socket access
 - **Actions**:
-  - Creates `/config/.claude`, `/config/.npm`, `/config/scripts`, `/config/workspace`
+  - Creates `/config/.claude`, `/config/.npm`, `/config/.npm-global`, `/config/scripts`, `/config/workspace`
   - Sets ownership on created directories using `chown "${PUID}:${PGID}"`
   - Adds `abc` user to docker group for socket access
   - Copies default startup script to `/config/scripts/startup.sh`
@@ -74,10 +74,11 @@ This project uses LinuxServer.io's s6-overlay init system with **two custom serv
 - **Actions**: Executes `/config/scripts/startup.sh` as the `abc` user
 - **Script tasks**:
   - Sets up default git config
-  - Verifies Claude Code and Docker access
+  - Configures npm to use `/config/.npm-global` for global packages
+  - Installs Claude Code and Happy Coder to `/config/.npm-global` if not present
+  - Creates auto-update config at `/config/.claude/config.json`
+  - Verifies Claude Code, Happy Coder, and Docker access
   - Installs VS Code extensions from `VSCODE_EXTENSIONS` env var or `/config/extensions.txt` file
-  - Extensions are installed via `code-server --install-extension <id>`
-  - Already installed extensions are skipped for efficiency
 
 ### Critical Implementation Detail: Service Bundle Integration
 
@@ -259,7 +260,7 @@ eamodio.gitlens
 - Extensions installed via `code-server --install-extension <id>`
 - Installed during startup script execution (runs as `abc` user)
 - Extensions stored in `/config/.local/share/code-server/extensions`
-- Installation happens in `root/defaults/startup.sh:33-66`
+- Installation happens in startup script after Claude Code and Happy Coder setup
 - Already installed extensions skipped automatically
 
 ## Development Workflow
