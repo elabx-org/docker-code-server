@@ -27,18 +27,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies for npm packages with native modules
+# Claude Code and Happy Coder will be installed by the startup script
+# to /config/.npm-global (user-writable, allows auto-updates)
 RUN apt-get update && \
     apt-get install -y build-essential python3 && \
     rm -rf /var/lib/apt/lists/*
-
-# Install claude-code CLI and happy-coder with proper permissions
-# Initial installation as root for speed, but will be reinstalled by abc user
-# in /config/.npm-global on first container start (see startup.sh)
-RUN npm install -g @anthropic-ai/claude-code happy-coder && \
-    chmod -R 755 /usr/local/lib/node_modules/@anthropic-ai/claude-code && \
-    chmod -R 755 /usr/local/lib/node_modules/happy-coder && \
-    chmod 755 /usr/local/bin/claude && \
-    chmod 755 /usr/local/bin/happy
 
 # Copy the init scripts and defaults for claude-code setup
 # The --chown=root:root ensures proper ownership for s6 scripts
