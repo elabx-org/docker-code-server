@@ -12,6 +12,35 @@ if [ ! -f ~/.gitconfig ]; then
     git config --global user.email "user@codeserver.local"
 fi
 
+# Configure npm to use /config/.npm-global for user-level global packages
+# This allows Claude Code to auto-update without root permissions
+export PATH="/config/.npm-global/bin:$PATH"
+npm config set prefix /config/.npm-global
+
+# Install Claude Code to /config/.npm-global if not already there
+if [ ! -f /config/.npm-global/bin/claude ]; then
+    echo "Installing Claude Code to /config/.npm-global for auto-updates..."
+    npm install -g @anthropic-ai/claude-code happy-coder
+fi
+
+# Add /config/.npm-global/bin to PATH permanently for all shells
+if [ ! -f ~/.bashrc ] || ! grep -q "/config/.npm-global/bin" ~/.bashrc; then
+    echo 'export PATH="/config/.npm-global/bin:$PATH"' >> ~/.bashrc
+fi
+
+# Configure Claude Code for auto-updates
+# Claude is installed in /config/.npm-global which is owned by the abc user
+# This allows Claude Code to auto-update itself
+if [ ! -f ~/.claude/config.json ]; then
+    echo "Configuring Claude Code settings..."
+    cat > ~/.claude/config.json <<'EOF'
+{
+  "installationMethod": "npm-global",
+  "autoUpdate": true
+}
+EOF
+fi
+
 # Check if claude-code is available
 if command -v claude >/dev/null 2>&1; then
     echo "Claude-code CLI is installed and ready for manual login"

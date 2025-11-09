@@ -11,7 +11,15 @@
       "Bash(claude setup-token:*)",
       "Bash(gh auth login:*)",
       "WebFetch(domain:code.visualstudio.com)",
-      "Bash(command -v code-server:*)"
+      "Bash(command -v code-server:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "WebFetch(domain:happy.engineering)",
+      "Bash(cat:*)",
+      "Bash(claude diagnose:*)",
+      "Bash(npm --version:*)",
+      "Bash(node --version:*)"
     ],
     "deny": [],
     "ask": []

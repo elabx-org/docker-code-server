@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Docker-based development environment that combines LinuxServer's code-server image with Claude Code CLI. This is a **Dockerfile project** - not a traditional application with package.json or requirements.txt. The primary deliverable is a container image, not compiled code.
 
+### Runtime Environment
+
+- **Node.js**: 20.x LTS (from NodeSource)
+- **npm**: 10.x (included with Node.js 20)
+- **Why LTS**: Long-term support until April 2026, modern npm features for reliable auto-updates
+- **Installation**: `Dockerfile:6-9` uses NodeSource repository for official binaries
+
 ## Build and Test Commands
 
 ### Build the Docker image locally
@@ -137,6 +144,38 @@ root/
 | /config | Persistent configuration | All user data, .claude/ config |
 | /config/workspace | Project workspace | Default working directory |
 | /var/run/docker.sock | Docker socket | Read-only, for Docker CLI access |
+
+## Claude Code Configuration
+
+Claude Code is installed in `/config/.npm-global` and runs as the `abc` user. This allows Claude Code to auto-update itself without requiring Docker image rebuilds. Since `/config` is a persistent volume owned by the `abc` user, updates persist across container restarts.
+
+**Installation Architecture**:
+- **Build time** (`Dockerfile:34-38`): npm installs Claude Code globally (provides initial binary for first boot)
+- **Runtime init** (`root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run:15`): Creates `/config/.npm-global` directory with proper ownership
+- **Startup script** (`root/defaults/startup.sh:15-24`):
+  - Configures npm prefix to `/config/.npm-global`
+  - Installs Claude Code to `/config/.npm-global` if not present
+  - Adds `/config/.npm-global/bin` to PATH in `~/.bashrc`
+
+**Auto-update Configuration**:
+A configuration file is automatically created at `/config/.claude/config.json`:
+
+```json
+{
+  "installationMethod": "npm-global",
+  "autoUpdate": true
+}
+```
+
+**Why this architecture**:
+- `/config` is already owned by the `abc` user (no permission issues)
+- `/config` is a persistent volume (updates survive container restarts)
+- Auto-updates work without permission errors
+- Users get the latest Claude Code features automatically
+- No need for Docker image rebuilds to update Claude Code
+- Setting `installationMethod: "npm-global"` eliminates diagnostic warnings
+
+**Implementation**: The startup script (`root/defaults/startup.sh:31-42`) creates this config file if it doesn't exist during container initialization.
 
 ## Remote Access with Happy Coder
 

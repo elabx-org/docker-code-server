@@ -12,11 +12,13 @@ mkdir -p /config/scripts
 mkdir -p /config/.claude
 mkdir -p /config/workspace
 mkdir -p /config/.npm
+mkdir -p /config/.npm-global
 
 # Set ownership on directories we created using PUID/PGID from environment
 echo "Setting ownership on claude-code directories (PUID=${PUID}, PGID=${PGID})..."
 chown -R "${PUID}:${PGID}" /config/.claude
 chown -R "${PUID}:${PGID}" /config/.npm
+chown -R "${PUID}:${PGID}" /config/.npm-global
 chown -R "${PUID}:${PGID}" /config/scripts
 chown -R "${PUID}:${PGID}" /config/workspace
 

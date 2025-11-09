@@ -3,14 +3,10 @@ FROM ghcr.io/linuxserver/code-server:latest
 # Switch to root for installations
 USER root
 
-# Install only the absolute essentials
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg2 \
-    lsb-release \
-    nodejs \
-    npm \
-    && rm -rf /var/lib/apt/lists/*
+# Install Node.js 20 LTS from NodeSource (provides modern npm 10.x)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Docker CLI (for docker commands)
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
@@ -29,12 +25,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     rm -rf /var/lib/apt/lists/*
 
 # Install claude-code CLI and happy-coder with proper permissions
-# The npm global directory needs to be accessible by the abc user
+# Initial installation as root for speed, but will be reinstalled by abc user
+# in /config/.npm-global on first container start (see startup.sh)
 RUN npm install -g @anthropic-ai/claude-code happy-coder && \
-    # Ensure the global npm modules are readable by all users
     chmod -R 755 /usr/local/lib/node_modules/@anthropic-ai/claude-code && \
     chmod -R 755 /usr/local/lib/node_modules/happy-coder && \
-    # Ensure the binaries are executable by all users
     chmod 755 /usr/local/bin/claude && \
     chmod 755 /usr/local/bin/happy
 
