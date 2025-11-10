@@ -2,4 +2,5 @@
 # shellcheck shell=bash
 
 # This runs as the abc user
-exec s6-setuidgid abc /config/scripts/startup.sh
+# Execute startup script directly from image (not from /config to avoid stale cached versions)
+exec s6-setuidgid abc /defaults/startup.sh

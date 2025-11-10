@@ -22,12 +22,8 @@ chown -R "${PUID}:${PGID}" /config/.npm-global
 chown -R "${PUID}:${PGID}" /config/scripts
 chown -R "${PUID}:${PGID}" /config/workspace
 
-# Copy startup script if it doesn't exist
-if [[ ! -f /config/scripts/startup.sh ]]; then
-    cp /defaults/startup.sh /config/scripts/startup.sh
-    chmod +x /config/scripts/startup.sh
-    chown "${PUID}:${PGID}" /config/scripts/startup.sh
-fi
+# No longer copying startup script to /config - it runs directly from /defaults
+# This ensures every container restart uses the fresh version from the image
 
 # Fix permissions on docker socket if mounted
 if [[ -S /var/run/docker.sock ]]; then
