@@ -1,18 +1,20 @@
-# Enhanced Code-Server with Claude Code
+# Enhanced Code-Server with AI Coding Assistants
 
-A Docker image that enhances the [linuxserver/code-server](https://github.com/linuxserver/docker-code-server) with claude-code CLI and essential development tools.
+A Docker image that enhances the [linuxserver/code-server](https://github.com/linuxserver/docker-code-server) with AI coding assistants (Claude Code & OpenAI Codex) and essential development tools.
 
 ## Features
 
 - **Base**: Latest linuxserver/code-server image
-- **Claude Code**: Full terminal version of claude-code installed and configured
+- **Claude Code**: Anthropic's AI coding assistant with terminal access
+- **OpenAI Codex**: OpenAI's AI coding assistant (works with ChatGPT Plus/Pro/Team)
 - **Happy Coder**: Remote mobile access to Claude Code sessions with push notifications
 - **Development Tools**:
   - Docker CLI & Docker Compose
   - GitHub CLI (gh)
-  - Node.js, npm, Python3, pip
+  - Node.js, npm, Python3, pip (with OpenAI package pre-installed)
   - Git, ripgrep, fzf, bat, exa, tree
   - Build tools and development dependencies
+- **Intelligent OAuth Helper**: Automatically converts localhost OAuth URLs to code-server proxy URLs for seamless authentication
 - **Auto-Updates**: Workflow automatically builds when upstream image updates
 - **Multi-Architecture**: Supports both AMD64 and ARM64
 
@@ -30,6 +32,8 @@ cd docker-code-server
 ```bash
 cp .env.example .env
 # Edit .env with your preferences (GitHub repo, timezone, etc.)
+# IMPORTANT: Set CODE_SERVER_URL for OAuth authentication to work
+# Example: CODE_SERVER_URL=https://code.example.com
 ```
 
 3. Start the container:
@@ -89,12 +93,13 @@ Then set `PUID=911` and `PGID=1001` in your environment.
 | `/config/workspace` | Default workspace directory |
 | `/var/run/docker.sock` | Docker socket (read-only) for Docker commands |
 
-## Using Claude Code
+## Using AI Coding Assistants
 
-Once the container is running:
+Once the container is running, open the integrated terminal in code-server.
 
-1. Open the integrated terminal in code-server
-2. Authenticate with Claude Code:
+### Using Claude Code
+
+1. Authenticate with Claude Code:
    ```bash
    # Recommended: Token-based authentication (works with remote access)
    claude setup-token
@@ -102,7 +107,35 @@ Once the container is running:
    # Alternative: OAuth login (only works well when accessing via localhost)
    claude auth login
    ```
-3. Run `claude` to start using the CLI
+2. Run `claude` to start using Claude Code
+
+### Using OpenAI Codex
+
+1. **Set CODE_SERVER_URL** (if not done already):
+   ```bash
+   # In your .env file
+   CODE_SERVER_URL=https://code.example.com  # Your actual code-server URL
+   ```
+
+2. Authenticate with Codex:
+   ```bash
+   # Run codex and select option 1 when prompted
+   codex
+   ```
+
+3. Select "Sign in with ChatGPT" if you have ChatGPT Plus/Pro/Team
+   - The browser helper automatically converts localhost URLs to proxy URLs
+   - Click the converted URL in the terminal
+   - Complete authentication in your browser
+   - **OAuth works seamlessly** - no manual URL editing needed!
+   - Usage included with your paid ChatGPT plan
+   - No additional API costs
+
+4. Or select "Provide your own API key" for pay-as-you-go billing
+   - Set `OPENAI_API_KEY` in your `.env` file
+   - Get your API key from https://platform.openai.com/api-keys
+
+**Note**: Both AI assistants are available side-by-side. Use whichever fits your workflow!
 
 ## Using Happy Coder (Remote Access)
 
@@ -138,11 +171,14 @@ See the [CLAUDE.md](CLAUDE.md#remote-access-with-happy-coder) for detailed usage
 
 ## GitHub Authentication
 
-### Method 1: GitHub CLI (Recommended)
+### Method 1: GitHub CLI with OAuth (Recommended)
 ```bash
+# Ensure CODE_SERVER_URL is set in your .env file first
 gh auth login
 ```
-Follow the prompts and select "Login with a web browser". The CLI will display a device code for you to paste during authentication.
+The browser helper automatically converts localhost OAuth URLs to code-server proxy URLs. Just click the converted URL in the terminal and complete authentication in your browser - it works seamlessly!
+
+**Alternative**: Select the device flow option to use a copy/paste code (works without CODE_SERVER_URL).
 
 ### Method 2: SSH Keys
 ```bash

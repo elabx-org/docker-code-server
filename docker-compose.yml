@@ -13,6 +13,8 @@ services:
       - DEFAULT_WORKSPACE=/config/workspace # Default workspace
       - PROXY_DOMAIN=${PROXY_DOMAIN:-}  # Your domain (e.g., code.mydomain.com) for subdomain proxying
       - VSCODE_EXTENSIONS=${VSCODE_EXTENSIONS:-}  # Comma-separated list of extension IDs to install
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}  # OpenAI API key for using OpenAI services
+      - CODE_SERVER_URL=${CODE_SERVER_URL:-}  # Your code-server URL (e.g., https://code.example.com) for OAuth proxy auto-conversion
     volumes:
       - ./config:/config
       - ./workspace:/config/workspace

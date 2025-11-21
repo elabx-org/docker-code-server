@@ -1,0 +1,86 @@
+#!/bin/bash
+# Browser helper for Docker containers
+# This script is called when CLI tools try to open URLs
+# Code-server's terminal will make the URL clickable
+# Automatically converts localhost URLs to code-server proxy URLs
+
+URL="$1"
+
+if [ -z "$URL" ]; then
+    echo "Usage: browser-helper <url>"
+    exit 1
+fi
+
+# Convert localhost URLs to code-server proxy URLs
+# If CODE_SERVER_URL is set (e.g., https://code.elabx.app), convert:
+#   http://localhost:PORT/path -> https://code.elabx.app/proxy/PORT/path
+#   http://127.0.0.1:PORT/path -> https://code.elabx.app/proxy/PORT/path
+if [ -n "$CODE_SERVER_URL" ]; then
+    # Remove trailing slash from CODE_SERVER_URL
+    CODE_SERVER_BASE="${CODE_SERVER_URL%/}"
+
+    # Check if URL is a localhost URL and convert it
+    if echo "$URL" | grep -qE '^https?://(localhost|127\.0\.0\.1):([0-9]+)'; then
+        # Extract port and path
+        PORT=$(echo "$URL" | sed -E 's#^https?://(localhost|127\.0\.0\.1):([0-9]+)(.*)#\2#')
+        PATH=$(echo "$URL" | sed -E 's#^https?://(localhost|127\.0\.0\.1):([0-9]+)(.*)#\3#')
+
+        # Construct proxy URL
+        CONVERTED_URL="${CODE_SERVER_BASE}/proxy/${PORT}${PATH}"
+
+        echo ""
+        echo "=========================================="
+        echo "  LOCALHOST URL AUTO-CONVERTED"
+        echo "=========================================="
+        echo ""
+        echo "Original:  $URL"
+        echo "Converted: $CONVERTED_URL"
+        echo ""
+        echo "CLICK THE CONVERTED LINK BELOW:"
+        echo ""
+        echo "  $CONVERTED_URL"
+        echo ""
+        echo "This URL uses code-server's proxy to reach the OAuth callback."
+        echo ""
+
+        # Use the converted URL
+        URL="$CONVERTED_URL"
+    else
+        # Not a localhost URL, display as-is
+        echo ""
+        echo "=========================================="
+        echo "  CLICK THE LINK BELOW TO AUTHENTICATE"
+        echo "=========================================="
+        echo ""
+        echo "  $URL"
+        echo ""
+    fi
+else
+    # CODE_SERVER_URL not set, display URL as-is with a helpful note
+    echo ""
+    echo "=========================================="
+    echo "  CLICK THE LINK BELOW TO AUTHENTICATE"
+    echo "=========================================="
+    echo ""
+    echo "  $URL"
+    echo ""
+    if echo "$URL" | grep -qE '^https?://(localhost|127\.0\.0\.1):([0-9]+)'; then
+        echo "NOTE: This is a localhost URL. If it doesn't work:"
+        PORT=$(echo "$URL" | sed -E 's#^https?://(localhost|127\.0\.0\.1):([0-9]+)(.*)#\2#')
+        PATH=$(echo "$URL" | sed -E 's#^https?://(localhost|127\.0\.0\.1):([0-9]+)(.*)#\3#')
+        echo "  1. Set CODE_SERVER_URL environment variable to your code-server URL"
+        echo "  2. Or manually change to: YOUR_CODE_SERVER_URL/proxy/${PORT}${PATH}"
+        echo ""
+    fi
+fi
+
+echo "The link above is clickable in code-server's terminal."
+echo "Click it to open in your browser and complete authentication."
+echo ""
+
+# Also try to open with xdg-open if available (for non-code-server terminals)
+if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$URL" 2>/dev/null || true
+fi
+
+exit 0

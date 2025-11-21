@@ -29,14 +29,20 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 # Install build dependencies for npm packages with native modules
 # Claude Code and Happy Coder will be installed by the startup script
 # to /config/.npm-global (user-writable, allows auto-updates)
+# Also install Python and OpenAI package for AI development
+# Install xdg-utils for browser helper support in containerized environment
 RUN apt-get update && \
-    apt-get install -y build-essential python3 && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install --no-cache-dir --break-system-packages openai
 
 # Copy the init scripts and defaults for claude-code setup
 # The --chown=root:root ensures proper ownership for s6 scripts
 # Scripts run from /defaults/ (in image), not /config/ (persistent volume)
 COPY --chown=root:root root/ /
+
+# Make browser helper script executable
+RUN chmod +x /usr/local/bin/browser-helper
 
 # Add our custom services to the user bundle (don't overwrite the base image's bundle)
 # This ensures both base image and custom services run during initialization

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Docker-based development environment that combines LinuxServer's code-server image with Claude Code CLI. This is a **Dockerfile project** - not a traditional application with package.json or requirements.txt. The primary deliverable is a container image, not compiled code.
+A Docker-based development environment that combines LinuxServer's code-server image with AI coding assistants (Claude Code and OpenAI Codex). This is a **Dockerfile project** - not a traditional application with package.json or requirements.txt. The primary deliverable is a container image, not compiled code.
 
 ### Runtime Environment
 
@@ -12,6 +12,23 @@ A Docker-based development environment that combines LinuxServer's code-server i
 - **npm**: 10.x (included with Node.js 20)
 - **Why LTS**: Long-term support until April 2026, modern npm features for reliable auto-updates
 - **Installation**: `Dockerfile:6-9` uses NodeSource repository for official binaries
+
+### OpenAI Integration
+
+The container includes the OpenAI Python package pre-installed for AI development:
+
+- **Package**: `openai` (latest version via pip)
+- **Python**: 3.x with pip and venv support
+- **Installation**: `Dockerfile:33-36` installs Python, pip, and the OpenAI package globally
+- **Authentication**: Set `OPENAI_API_KEY` environment variable in `.env` file
+- **Usage**: Import in Python scripts: `import openai`
+- **Verification**: Startup script checks OpenAI package availability and displays version
+
+**Getting your API key:**
+1. Visit https://platform.openai.com/api-keys
+2. Create or copy your API key
+3. Add to `.env` file: `OPENAI_API_KEY=sk-...`
+4. Restart container: `docker-compose restart`
 
 ## Build and Test Commands
 
@@ -46,7 +63,8 @@ docker logs code-server-claude
 ### Access the environment
 - Web interface: http://localhost:8443
 - Terminal: Open terminal in web interface
-- Claude authentication: Run `claude setup-token` in terminal
+- Claude Code authentication: Run `claude setup-token` in terminal
+- OpenAI Codex authentication: Run `codex` and select "Sign in with ChatGPT" (for Plus/Pro/Team)
 - GitHub authentication: Run `gh auth login` in terminal
 - Happy Coder (optional): Run `happy` instead of `claude` for remote mobile access
 
@@ -75,9 +93,9 @@ This project uses LinuxServer.io's s6-overlay init system with **two custom serv
 - **Script tasks**:
   - Sets up default git config
   - Configures npm to use `/config/.npm-global` for global packages
-  - Installs Claude Code and Happy Coder to `/config/.npm-global` if not present
+  - Installs Claude Code, OpenAI Codex, and Happy Coder to `/config/.npm-global` if not present
   - Creates auto-update config at `/config/.claude/config.json`
-  - Verifies Claude Code, Happy Coder, and Docker access
+  - Verifies Claude Code, Codex, Happy Coder, and Docker access
   - Installs VS Code extensions from `VSCODE_EXTENSIONS` env var or `/config/extensions.txt` file
 
 ### Critical Implementation Detail: Service Bundle Integration
@@ -137,6 +155,8 @@ root/
 | DEFAULT_WORKSPACE | Default workspace path | /config/workspace |
 | PROXY_DOMAIN | Domain for subdomain proxying | - |
 | VSCODE_EXTENSIONS | Comma-separated list of extension IDs | - |
+| OPENAI_API_KEY | OpenAI API key for using OpenAI services | - |
+| CODE_SERVER_URL | Your code-server URL for OAuth proxy conversion (e.g., https://code.example.com) | - |
 
 ## Volume Mounts
 
@@ -177,6 +197,83 @@ A configuration file is automatically created at `/config/.claude/config.json`:
 - Setting `installationMethod: "npm-global"` eliminates diagnostic warnings
 
 **Implementation**: The startup script (`root/defaults/startup.sh:31-42`) creates this config file if it doesn't exist during container initialization.
+
+## OpenAI Codex Configuration
+
+OpenAI Codex CLI is installed in `/config/.npm-global` alongside Claude Code, using the same auto-update architecture.
+
+**Installation Architecture**:
+- **Startup script** (`root/defaults/startup.sh:34-45`): Installs Codex CLI to `/config/.npm-global` if not present
+- **Auto-updates**: Codex can auto-update itself since it's in the user-writable `/config` volume
+- **PATH**: Added to `~/.bashrc` automatically
+
+**Authentication Options**:
+Codex offers two authentication methods:
+
+1. **Sign in with ChatGPT (Recommended for ChatGPT Plus/Pro/Team users)**:
+   ```bash
+   codex
+   ```
+   - Select "Sign in with ChatGPT" when prompted
+   - Usage included with your ChatGPT Plus, Pro, or Team plan
+   - No additional API costs
+
+2. **Use OpenAI API Key (Pay-as-you-go)**:
+   - Set `OPENAI_API_KEY` in your `.env` file
+   - Get your API key from https://platform.openai.com/api-keys
+   - Billed separately based on usage
+
+**Why this architecture**:
+- Same benefits as Claude Code installation (persistent, auto-updating)
+- Users can choose between ChatGPT subscription or API billing
+- Both AI assistants (Claude & Codex) available side-by-side
+
+## Browser Helper for OAuth in Containers
+
+This container includes an intelligent browser helper (`/usr/local/bin/browser-helper`) that **automatically converts localhost OAuth callback URLs to code-server proxy URLs**, enabling seamless OAuth authentication for CLI tools in containerized environments.
+
+**The Problem**: CLI tools that use OAuth open `http://localhost:PORT/callback` URLs. In a Docker container accessed remotely (e.g., `https://code.example.com`), these localhost URLs don't work because:
+- Your browser is on your host machine
+- The OAuth callback server is inside the container
+- The localhost URL points to YOUR machine, not the container
+
+**The Solution - Automatic URL Conversion**:
+- **Location**: `root/usr/local/bin/browser-helper`
+- **Installation**: `Dockerfile:45` makes the script executable
+- **Configuration**:
+  - `root/defaults/startup.sh:52-57` sets `BROWSER` environment variable
+  - Set `CODE_SERVER_URL` in `.env` (e.g., `CODE_SERVER_URL=https://code.example.com`)
+- **How it works**:
+  1. CLI tool tries to open `http://localhost:11003/callback?code=abc`
+  2. Browser helper automatically converts to: `https://code.example.com/proxy/11003/callback?code=abc`
+  3. Displays the converted URL as a clickable link in terminal
+  4. You click the link - OAuth completes successfully through code-server's built-in proxy!
+
+**Configuration Example**:
+```bash
+# In your .env file
+CODE_SERVER_URL=https://code.elabx.app
+
+# Then OAuth authentication works seamlessly:
+codex                    # Select "Sign in with ChatGPT"
+gh auth login           # Select "Login with a web browser"
+```
+
+**Supported Tools**:
+- `gh auth login` - GitHub CLI OAuth (browser flow)
+- `codex` - OpenAI Codex sign-in with ChatGPT
+- Any CLI tool that uses localhost OAuth callbacks and respects `BROWSER` environment variable
+
+**Technical Details**:
+- Converts both `localhost:PORT` and `127.0.0.1:PORT` patterns
+- Preserves query parameters and paths in the conversion
+- Works with code-server's built-in `/proxy/PORT/` feature
+- Handles trailing slashes correctly
+- Falls back to displaying original URL if `CODE_SERVER_URL` is not set
+
+**Without CODE_SERVER_URL**: The helper still displays URLs clearly with instructions to manually convert them to proxy URLs.
+
+**Alternative Methods**: Token-based authentication (`claude setup-token`, device flow) works without the browser helper.
 
 ## Remote Access with Happy Coder
 
@@ -296,27 +393,35 @@ The `.github/workflows/build.yml` workflow automatically builds and pushes image
 
 ## Common Issues
 
-### CLI OAuth redirects fail when accessing via domain
-**Problem:** When accessing code-server through a custom domain, `gh auth login` or `claude auth login` try to redirect to `localhost:PORT` which fails
+### OAuth Authentication in Container
 
-**Why this happens:**
-1. CLI tools start OAuth callback servers on the container's `localhost:RANDOM_PORT`
-2. They send the callback URL `http://localhost:PORT/callback` to the OAuth provider (GitHub/Claude)
-3. After authentication, the provider redirects your browser to that URL
-4. Your browser tries to connect to YOUR machine's localhost, not the container's localhost
-5. The connection fails because the callback server is inside the container
+**✅ Solution - Automatic URL Conversion (Configured)**:
+Set `CODE_SERVER_URL` in your `.env` file to enable automatic localhost-to-proxy URL conversion:
 
-**Why we can't fix this at the image level:**
-- CLI tools don't expose configuration for custom callback URLs
-- The OAuth provider only knows about the hardcoded `localhost:PORT` URL
-- We can't intercept or modify the callback URL without modifying the CLI tools themselves
+```bash
+# In .env
+CODE_SERVER_URL=https://code.elabx.app
+```
 
-**Solutions (use these instead):**
-- **GitHub CLI:** Use `gh auth login` - automatically uses device flow (copy/paste code)
-- **Claude Code:** Use `claude setup-token` - token-based auth without OAuth callbacks
-- **SSH Keys (GitHub only):** Copy SSH keys to `/config/.ssh/` and configure git manually
+After setting this, OAuth authentication works seamlessly:
+1. Run `codex` or `gh auth login`
+2. The browser helper automatically converts `localhost:PORT` to `CODE_SERVER_URL/proxy/PORT/`
+3. Click the converted URL in the terminal
+4. Complete authentication in your browser
+5. Done! OAuth callback completes successfully
 
-**The startup script now provides helpful guidance** when you open a terminal
+**Supported OAuth Flows**:
+- `gh auth login` - GitHub CLI (browser flow)
+- `codex` - OpenAI Codex with ChatGPT sign-in
+- Any CLI tool using localhost OAuth callbacks
+
+**If OAuth still doesn't work**:
+1. **Verify CODE_SERVER_URL**: Must match your actual code-server URL (including https://)
+2. **Check code-server accessibility**: Ensure `/proxy/PORT/` paths work (test with a simple HTTP server)
+3. **Alternative - Device Flow**: Use `gh auth login` and select device flow (copy/paste code)
+4. **Alternative - Token Auth**: Use `claude setup-token` or API keys
+
+**Technical Note**: The `BROWSER` environment variable is automatically set to `/usr/local/bin/browser-helper` which intelligently converts localhost URLs and displays clickable links in code-server's terminal
 
 ### Claude Code authentication fails
 - Use `claude setup-token` for token-based authentication

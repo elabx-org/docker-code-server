@@ -20,7 +20,17 @@
       "Bash(claude diagnose:*)",
       "Bash(npm --version:*)",
       "Bash(node --version:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh run list:*)",
+      "Bash(curl:*)",
+      "Bash(git push:*)",
+      "Bash(dos2unix:*)",
+      "Bash(shellcheck:*)",
+      "Bash(bash -n:*)",
+      "Bash(tree:*)",
+      "Bash(xargs bash root/usr/local/bin/browser-helper)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

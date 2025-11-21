@@ -17,7 +17,7 @@ fi
 export PATH="/config/.npm-global/bin:$PATH"
 npm config set prefix /config/.npm-global
 
-# Install Claude Code to /config/.npm-global if not already functional
+# Install Claude Code and Codex to /config/.npm-global if not already functional
 # Check if claude binary exists AND is executable
 if [ ! -x /config/.npm-global/bin/claude ]; then
     echo "Installing Claude Code to /config/.npm-global for auto-updates..."
@@ -31,10 +31,30 @@ if [ ! -x /config/.npm-global/bin/claude ]; then
     fi
 fi
 
+# Install OpenAI Codex if not already functional
+if [ ! -x /config/.npm-global/bin/codex ]; then
+    echo "Installing OpenAI Codex to /config/.npm-global for auto-updates..."
+    npm install -g @openai/codex 2>&1 | tail -20
+
+    # Verify installation succeeded
+    if [ -x /config/.npm-global/bin/codex ]; then
+        echo "✓ OpenAI Codex installed successfully"
+    else
+        echo "✗ OpenAI Codex installation failed - check logs above"
+    fi
+fi
+
 # Add /config/.npm-global/bin to PATH permanently for all shells
 if [ ! -f ~/.bashrc ] || ! grep -q "/config/.npm-global/bin" ~/.bashrc; then
     echo 'export PATH="/config/.npm-global/bin:$PATH"' >> ~/.bashrc
 fi
+
+# Configure BROWSER environment variable to use our container-friendly browser helper
+# This allows OAuth flows from CLI tools to work in the containerized code-server environment
+if [ ! -f ~/.bashrc ] || ! grep -q "BROWSER=" ~/.bashrc; then
+    echo 'export BROWSER="/usr/local/bin/browser-helper"' >> ~/.bashrc
+fi
+export BROWSER="/usr/local/bin/browser-helper"
 
 # Configure Claude Code for auto-updates
 # Claude is installed in /config/.npm-global which is owned by the abc user
@@ -51,16 +71,39 @@ fi
 
 # Check if claude-code is available
 if command -v claude >/dev/null 2>&1; then
-    echo "Claude-code CLI is installed and ready for manual login"
+    echo "Claude Code CLI is installed and ready"
     echo "To authenticate, run: claude setup-token"
 else
-    echo "Warning: claude-code CLI not found"
+    echo "Warning: Claude Code CLI not found"
+fi
+
+# Check if codex is available
+if command -v codex >/dev/null 2>&1; then
+    echo "OpenAI Codex CLI is installed and ready"
+    echo "To authenticate:"
+    echo "  - Option 1: Sign in with ChatGPT (Plus/Pro/Team) - run: codex"
+    echo "  - Option 2: Use API key - set OPENAI_API_KEY environment variable"
+else
+    echo "Warning: OpenAI Codex CLI not found"
 fi
 
 # Check if happy-coder is available
 if command -v happy >/dev/null 2>&1; then
     echo "Happy Coder is installed for remote mobile access"
     echo "Usage: Run 'happy' instead of 'claude' to enable remote monitoring"
+fi
+
+# Check if OpenAI Python package is available
+if python3 -c "import openai" 2>/dev/null; then
+    echo "OpenAI Python package is installed and ready"
+    echo "To use: Set OPENAI_API_KEY environment variable or run 'openai auth login'"
+    # Show current OpenAI package version
+    OPENAI_VERSION=$(python3 -c "import openai; print(openai.__version__)" 2>/dev/null)
+    if [ -n "$OPENAI_VERSION" ]; then
+        echo "OpenAI version: $OPENAI_VERSION"
+    fi
+else
+    echo "Warning: OpenAI Python package not found"
 fi
 
 # Docker socket status
@@ -72,6 +115,10 @@ if [ -S /var/run/docker.sock ]; then
         echo "Warning: User may not have docker access"
     fi
 fi
+
+# Browser helper status
+echo "Browser helper configured for OAuth flows in containerized environment"
+echo "CLI tools will display clickable links in code-server's terminal"
 
 # Install VS Code extensions if specified
 install_extensions() {
