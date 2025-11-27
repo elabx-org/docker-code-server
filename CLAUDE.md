@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Docker-based development environment that combines LinuxServer's code-server image with AI coding assistants (Claude Code and OpenAI Codex). This is a **Dockerfile project** - not a traditional application with package.json or requirements.txt. The primary deliverable is a container image, not compiled code.
+A Docker-based development environment that combines LinuxServer's code-server image with AI coding assistants (Claude Code, OpenAI Codex, and Google Gemini CLI). This is a **Dockerfile project** - not a traditional application with package.json or requirements.txt. The primary deliverable is a container image, not compiled code.
 
 ### Runtime Environment
 
 - **Node.js**: 20.x LTS (from NodeSource)
 - **npm**: 10.x (included with Node.js 20)
 - **Why LTS**: Long-term support until April 2026, modern npm features for reliable auto-updates
-- **Installation**: `Dockerfile:6-9` uses NodeSource repository for official binaries
+- **Installation**: `Dockerfile:6-11` uses NodeSource repository for official binaries
 
 ### OpenAI Integration
 
@@ -19,7 +19,7 @@ The container includes the OpenAI Python package pre-installed for AI developmen
 
 - **Package**: `openai` (latest version via pip)
 - **Python**: 3.x with pip and venv support
-- **Installation**: `Dockerfile:33-36` installs Python, pip, and the OpenAI package globally
+- **Installation**: `Dockerfile:34-37` installs Python, pip, and the OpenAI package globally
 - **Authentication**: Set `OPENAI_API_KEY` environment variable in `.env` file
 - **Usage**: Import in Python scripts: `import openai`
 - **Verification**: Startup script checks OpenAI package availability and displays version
@@ -65,6 +65,7 @@ docker logs code-server-claude
 - Terminal: Open terminal in web interface
 - Claude Code authentication: Run `claude setup-token` in terminal
 - OpenAI Codex authentication: Run `codex` and select "Sign in with ChatGPT" (for Plus/Pro/Team)
+- Google Gemini authentication: Run `gemini` and sign in with Google account
 - GitHub authentication: Run `gh auth login` in terminal
 - Happy Coder (optional): Run `happy` instead of `claude` for remote mobile access
 
@@ -79,28 +80,27 @@ This project uses LinuxServer.io's s6-overlay init system with **two custom serv
 - **Location**: `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run`
 - **Purpose**: Creates application directories and configures Docker socket access
 - **Actions**:
-  - Creates `/config/.claude`, `/config/.npm`, `/config/.npm-global`, `/config/scripts`, `/config/workspace`
+  - Creates `/config/.claude`, `/config/.codex`, `/config/.gemini`, `/config/.npm`, `/config/.npm-global`, `/config/scripts`, `/config/workspace`
   - Sets ownership on created directories using `chown "${PUID}:${PGID}"`
   - Adds `abc` user to docker group for socket access
-  - Copies default startup script to `/config/scripts/startup.sh`
 - **Note**: Must explicitly set ownership since it runs after base image's init phase
 
 **2. svc-claude-code-startup** (runs as user `abc`, oneshot)
 - **Dependencies**: Runs after `init-claude-code-config`
 - **Location**: `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run`
 - **Purpose**: User-level initialization
-- **Actions**: Executes `/config/scripts/startup.sh` as the `abc` user
+- **Actions**: Executes `/defaults/startup.sh` as the `abc` user (runs from image, not persistent volume)
 - **Script tasks**:
   - Sets up default git config
   - Configures npm to use `/config/.npm-global` for global packages
-  - Installs Claude Code, OpenAI Codex, and Happy Coder to `/config/.npm-global` if not present
+  - Installs Claude Code, OpenAI Codex, Google Gemini CLI, and Happy Coder to `/config/.npm-global` if not present
   - Creates auto-update config at `/config/.claude/config.json`
-  - Verifies Claude Code, Codex, Happy Coder, and Docker access
+  - Verifies Claude Code, Codex, Gemini, Happy Coder, and Docker access
   - Installs VS Code extensions from `VSCODE_EXTENSIONS` env var or `/config/extensions.txt` file
 
 ### Critical Implementation Detail: Service Bundle Integration
 
-In `Dockerfile:45-46`, custom services are added to the base image's `user` bundle using:
+In `Dockerfile:49-50`, custom services are added to the base image's `user` bundle using:
 ```dockerfile
 RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup
@@ -125,22 +125,24 @@ The base image handles PUID/PGID ownership of existing `/config` contents during
 ```
 root/
 ├── defaults/
-│   └── startup.sh                              # User startup script template
-└── etc/s6-overlay/s6-rc.d/
-    ├── init-claude-code-config/                # Root init service
-    │   ├── dependencies.d/                     # Runs after these base services
-    │   │   ├── init-adduser
-    │   │   ├── init-config
-    │   │   └── init-mods-end
-    │   ├── run                                 # The actual init script
-    │   ├── type                                # "oneshot"
-    │   └── up                                  # Empty (successful completion)
-    └── svc-claude-code-startup/                # User startup service
-        ├── dependencies.d/
-        │   └── init-claude-code-config         # Runs after root init
-        ├── run                                 # Executes startup.sh as abc user
-        ├── type                                # "oneshot"
-        └── up                                  # Empty (successful completion)
+│   └── startup.sh                              # User startup script (runs from image)
+├── etc/s6-overlay/s6-rc.d/
+│   ├── init-claude-code-config/                # Root init service
+│   │   ├── dependencies.d/                     # Runs after these base services
+│   │   │   ├── init-adduser
+│   │   │   ├── init-config
+│   │   │   └── init-mods-end
+│   │   ├── run                                 # The actual init script
+│   │   ├── type                                # "oneshot"
+│   │   └── up                                  # Empty (successful completion)
+│   └── svc-claude-code-startup/                # User startup service
+│       ├── dependencies.d/
+│       │   └── init-claude-code-config         # Runs after root init
+│       ├── run                                 # Executes /defaults/startup.sh as abc user
+│       ├── type                                # "oneshot"
+│       └── up                                  # Empty (successful completion)
+└── usr/local/bin/
+    └── browser-helper                          # OAuth URL converter for containers
 ```
 
 ## Key Environment Variables
@@ -156,6 +158,7 @@ root/
 | PROXY_DOMAIN | Domain for subdomain proxying | - |
 | VSCODE_EXTENSIONS | Comma-separated list of extension IDs | - |
 | OPENAI_API_KEY | OpenAI API key for using OpenAI services | - |
+| GOOGLE_API_KEY | Google API key for Gemini CLI (alternative to OAuth) | - |
 | CODE_SERVER_URL | Your code-server URL for OAuth proxy conversion (e.g., https://code.example.com) | - |
 
 ## Volume Mounts
@@ -171,11 +174,10 @@ root/
 Claude Code is installed in `/config/.npm-global` and runs as the `abc` user. This allows Claude Code to auto-update itself without requiring Docker image rebuilds. Since `/config` is a persistent volume owned by the `abc` user, updates persist across container restarts.
 
 **Installation Architecture**:
-- **Build time** (`Dockerfile:34-38`): npm installs Claude Code globally (provides initial binary for first boot)
-- **Runtime init** (`root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run:15`): Creates `/config/.npm-global` directory with proper ownership
-- **Startup script** (`root/defaults/startup.sh:15-24`):
+- **Runtime init** (`root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run:16`): Creates `/config/.npm-global` directory with proper ownership
+- **Startup script** (`root/defaults/startup.sh:15-32`):
   - Configures npm prefix to `/config/.npm-global`
-  - Installs Claude Code to `/config/.npm-global` if not present
+  - Installs Claude Code and Happy Coder to `/config/.npm-global` if not present
   - Adds `/config/.npm-global/bin` to PATH in `~/.bashrc`
 
 **Auto-update Configuration**:
@@ -196,7 +198,7 @@ A configuration file is automatically created at `/config/.claude/config.json`:
 - No need for Docker image rebuilds to update Claude Code
 - Setting `installationMethod: "npm-global"` eliminates diagnostic warnings
 
-**Implementation**: The startup script (`root/defaults/startup.sh:31-42`) creates this config file if it doesn't exist during container initialization.
+**Implementation**: The startup script (`root/defaults/startup.sh:62-70`) creates this config file if it doesn't exist during container initialization.
 
 ## OpenAI Codex Configuration
 
@@ -204,6 +206,7 @@ OpenAI Codex CLI is installed in `/config/.npm-global` alongside Claude Code, us
 
 **Installation Architecture**:
 - **Startup script** (`root/defaults/startup.sh:34-45`): Installs Codex CLI to `/config/.npm-global` if not present
+- **Config directory**: `/config/.codex` is created by init script with proper ownership
 - **Auto-updates**: Codex can auto-update itself since it's in the user-writable `/config` volume
 - **PATH**: Added to `~/.bashrc` automatically
 
@@ -228,6 +231,37 @@ Codex offers two authentication methods:
 - Users can choose between ChatGPT subscription or API billing
 - Both AI assistants (Claude & Codex) available side-by-side
 
+## Google Gemini CLI Configuration
+
+Google Gemini CLI is installed in `/config/.npm-global` alongside Claude Code and Codex, using the same auto-update architecture.
+
+**Installation Architecture**:
+- **Startup script** (`root/defaults/startup.sh:47-58`): Installs Gemini CLI to `/config/.npm-global` if not present
+- **Config directory**: `/config/.gemini` is created by init script with proper ownership
+- **Auto-updates**: Gemini can auto-update itself since it's in the user-writable `/config` volume
+- **PATH**: Added to `~/.bashrc` automatically
+
+**Authentication Options**:
+Gemini CLI offers two authentication methods:
+
+1. **Sign in with Google account (Recommended)**:
+   ```bash
+   gemini
+   ```
+   - Select sign-in option when prompted
+   - Free tier: 60 requests/min and 1,000 requests/day
+   - Access to Gemini 2.5 Pro with 1M token context window
+
+2. **Use Google API Key**:
+   - Set `GOOGLE_API_KEY` in your `.env` file
+   - Get your API key from https://aistudio.google.com/apikey
+   - Optionally set `GOOGLE_GENAI_USE_VERTEXAI=true` for Vertex AI
+
+**Features**:
+- Built-in tools: Google Search grounding, file operations, shell commands
+- MCP (Model Context Protocol) support for custom integrations
+- Terminal-first design for developers
+
 ## Browser Helper for OAuth in Containers
 
 This container includes an intelligent browser helper (`/usr/local/bin/browser-helper`) that **automatically converts localhost OAuth callback URLs to code-server proxy URLs**, enabling seamless OAuth authentication for CLI tools in containerized environments.
@@ -239,9 +273,9 @@ This container includes an intelligent browser helper (`/usr/local/bin/browser-h
 
 **The Solution - Automatic URL Conversion**:
 - **Location**: `root/usr/local/bin/browser-helper`
-- **Installation**: `Dockerfile:45` makes the script executable
+- **Installation**: `Dockerfile:45` copies script, makes it executable
 - **Configuration**:
-  - `root/defaults/startup.sh:52-57` sets `BROWSER` environment variable
+  - `root/defaults/startup.sh:52-58` sets `BROWSER` environment variable
   - Set `CODE_SERVER_URL` in `.env` (e.g., `CODE_SERVER_URL=https://code.example.com`)
 - **How it works**:
   1. CLI tool tries to open `http://localhost:11003/callback?code=abc`

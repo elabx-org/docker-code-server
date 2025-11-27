@@ -11,6 +11,7 @@ echo "Initializing claude-code specific directories..."
 mkdir -p /config/scripts
 mkdir -p /config/.claude
 mkdir -p /config/.codex
+mkdir -p /config/.gemini
 mkdir -p /config/workspace
 mkdir -p /config/.npm
 mkdir -p /config/.npm-global
@@ -19,6 +20,7 @@ mkdir -p /config/.npm-global
 echo "Setting ownership on AI assistant directories (PUID=${PUID}, PGID=${PGID})..."
 chown -R "${PUID}:${PGID}" /config/.claude
 chown -R "${PUID}:${PGID}" /config/.codex
+chown -R "${PUID}:${PGID}" /config/.gemini
 chown -R "${PUID}:${PGID}" /config/.npm
 chown -R "${PUID}:${PGID}" /config/.npm-global
 chown -R "${PUID}:${PGID}" /config/scripts

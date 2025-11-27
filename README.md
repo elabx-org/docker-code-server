@@ -1,12 +1,13 @@
 # Enhanced Code-Server with AI Coding Assistants
 
-A Docker image that enhances the [linuxserver/code-server](https://github.com/linuxserver/docker-code-server) with AI coding assistants (Claude Code & OpenAI Codex) and essential development tools.
+A Docker image that enhances the [linuxserver/code-server](https://github.com/linuxserver/docker-code-server) with AI coding assistants (Claude Code, OpenAI Codex & Google Gemini CLI) and essential development tools.
 
 ## Features
 
 - **Base**: Latest linuxserver/code-server image
 - **Claude Code**: Anthropic's AI coding assistant with terminal access
 - **OpenAI Codex**: OpenAI's AI coding assistant (works with ChatGPT Plus/Pro/Team)
+- **Google Gemini CLI**: Google's AI coding assistant with 1M token context window (free tier available)
 - **Happy Coder**: Remote mobile access to Claude Code sessions with push notifications
 - **Development Tools**:
   - Docker CLI & Docker Compose
@@ -135,7 +136,30 @@ Once the container is running, open the integrated terminal in code-server.
    - Set `OPENAI_API_KEY` in your `.env` file
    - Get your API key from https://platform.openai.com/api-keys
 
-**Note**: Both AI assistants are available side-by-side. Use whichever fits your workflow!
+**Note**: All three AI assistants are available side-by-side. Use whichever fits your workflow!
+
+### Using Google Gemini CLI
+
+1. **Set CODE_SERVER_URL** (if not done already):
+   ```bash
+   # In your .env file
+   CODE_SERVER_URL=https://code.example.com  # Your actual code-server URL
+   ```
+
+2. Authenticate with Gemini:
+   ```bash
+   # Run gemini and sign in when prompted
+   gemini
+   ```
+
+3. **Free tier available** - No API key required for personal use:
+   - 60 requests/min and 1,000 requests/day
+   - Access to Gemini 2.5 Pro with 1M token context window
+   - Built-in tools: Google Search, file operations, shell commands
+
+4. Or use **API key authentication**:
+   - Set `GOOGLE_API_KEY` in your `.env` file
+   - Get your API key from https://aistudio.google.com/apikey
 
 ## Using Happy Coder (Remote Access)
 

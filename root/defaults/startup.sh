@@ -44,6 +44,19 @@ if [ ! -x /config/.npm-global/bin/codex ]; then
     fi
 fi
 
+# Install Google Gemini CLI if not already functional
+if [ ! -x /config/.npm-global/bin/gemini ]; then
+    echo "Installing Google Gemini CLI to /config/.npm-global for auto-updates..."
+    npm install -g @google/gemini-cli 2>&1 | tail -20
+
+    # Verify installation succeeded
+    if [ -x /config/.npm-global/bin/gemini ]; then
+        echo "✓ Google Gemini CLI installed successfully"
+    else
+        echo "✗ Google Gemini CLI installation failed - check logs above"
+    fi
+fi
+
 # Add /config/.npm-global/bin to PATH permanently for all shells
 if [ ! -f ~/.bashrc ] || ! grep -q "/config/.npm-global/bin" ~/.bashrc; then
     echo 'export PATH="/config/.npm-global/bin:$PATH"' >> ~/.bashrc
@@ -91,6 +104,16 @@ fi
 if command -v happy >/dev/null 2>&1; then
     echo "Happy Coder is installed for remote mobile access"
     echo "Usage: Run 'happy' instead of 'claude' to enable remote monitoring"
+fi
+
+# Check if gemini is available
+if command -v gemini >/dev/null 2>&1; then
+    echo "Google Gemini CLI is installed and ready"
+    echo "To authenticate:"
+    echo "  - Option 1: Sign in with Google account - run: gemini"
+    echo "  - Option 2: Use API key - set GOOGLE_API_KEY environment variable"
+else
+    echo "Warning: Google Gemini CLI not found"
 fi
 
 # Check if OpenAI Python package is available
