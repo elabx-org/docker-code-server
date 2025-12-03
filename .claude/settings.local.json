@@ -23,6 +23,8 @@
       "Bash(docker logs:*)",
       "Bash(gh auth:*)",
       "Bash(gh run list:*)",
+      "Bash(gh run watch:*)",
+      "Bash(gh run view:*)",
       "Bash(curl:*)",
       "Bash(git push:*)",
       "Bash(dos2unix:*)",
@@ -30,7 +32,9 @@
       "Bash(bash -n:*)",
       "Bash(tree:*)",
       "Bash(xargs bash root/usr/local/bin/browser-helper)",
-      "WebSearch"
+      "Bash(docker build:*)",
+      "WebSearch",
+      "Bash(git rebase:*)"
     ],
     "deny": [],
     "ask": []

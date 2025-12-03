@@ -178,5 +178,15 @@ if [ -f /config/extensions.txt ]; then
     done < /config/extensions.txt
 fi
 
+# Install GitHub Copilot extensions (not available in Open VSX)
+# These are installed from VS Code Marketplace using a custom script
+if [ -f /defaults/install-copilot.sh ]; then
+    echo ""
+    echo "Installing GitHub Copilot extensions..."
+    # Source the script to get the function, then call it
+    source /defaults/install-copilot.sh
+    install_copilot_extensions || echo "Warning: GitHub Copilot installation had issues (may still work)"
+fi
+
 echo "Claude-code environment initialized successfully!"
 echo "Workspace directory: /config/workspace"

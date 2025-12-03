@@ -27,12 +27,13 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies for npm packages with native modules
+# Also install jq for GitHub Copilot extension installer
 # Claude Code and Happy Coder will be installed by the startup script
 # to /config/.npm-global (user-writable, allows auto-updates)
 # Also install Python and OpenAI package for AI development
 # Install xdg-utils for browser helper support in containerized environment
 RUN apt-get update && \
-    apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils && \
+    apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils jq && \
     rm -rf /var/lib/apt/lists/* && \
     pip3 install --no-cache-dir --break-system-packages openai
 

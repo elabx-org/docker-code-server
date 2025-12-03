@@ -9,6 +9,7 @@ A Docker image that enhances the [linuxserver/code-server](https://github.com/li
 - **OpenAI Codex**: OpenAI's AI coding assistant (works with ChatGPT Plus/Pro/Team)
 - **Google Gemini CLI**: Google's AI coding assistant with 1M token context window (free tier available)
 - **Happy Coder**: Remote mobile access to Claude Code sessions with push notifications
+- **GitHub Copilot**: Pre-installed GitHub Copilot and Copilot Chat extensions
 - **Development Tools**:
   - Docker CLI & Docker Compose
   - GitHub CLI (gh)
@@ -192,6 +193,17 @@ Happy Coder enables remote monitoring and control of Claude Code from your mobil
 - End-to-end encryption for code security
 
 See the [CLAUDE.md](CLAUDE.md#remote-access-with-happy-coder) for detailed usage instructions.
+
+## Using GitHub Copilot
+
+GitHub Copilot and Copilot Chat are automatically installed on container startup (they're not available in Open VSX, so we install them directly from the VS Code Marketplace).
+
+1. Open code-server in your browser
+2. Open the Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
+3. Run "GitHub Copilot: Sign In"
+4. Follow the device code authentication flow
+
+**Note:** Requires a valid GitHub Copilot subscription.
 
 ## GitHub Authentication
 

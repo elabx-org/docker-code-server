@@ -19,7 +19,7 @@ The container includes the OpenAI Python package pre-installed for AI developmen
 
 - **Package**: `openai` (latest version via pip)
 - **Python**: 3.x with pip and venv support
-- **Installation**: `Dockerfile:34-37` installs Python, pip, and the OpenAI package globally
+- **Installation**: `Dockerfile:35-38` installs Python, pip, jq, and the OpenAI package globally
 - **Authentication**: Set `OPENAI_API_KEY` environment variable in `.env` file
 - **Usage**: Import in Python scripts: `import openai`
 - **Verification**: Startup script checks OpenAI package availability and displays version
@@ -97,10 +97,11 @@ This project uses LinuxServer.io's s6-overlay init system with **two custom serv
   - Creates auto-update config at `/config/.claude/config.json`
   - Verifies Claude Code, Codex, Gemini, Happy Coder, and Docker access
   - Installs VS Code extensions from `VSCODE_EXTENSIONS` env var or `/config/extensions.txt` file
+  - Installs GitHub Copilot extensions from VS Code Marketplace
 
 ### Critical Implementation Detail: Service Bundle Integration
 
-In `Dockerfile:49-50`, custom services are added to the base image's `user` bundle using:
+In `Dockerfile:50-51`, custom services are added to the base image's `user` bundle using:
 ```dockerfile
 RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup
@@ -125,7 +126,8 @@ The base image handles PUID/PGID ownership of existing `/config` contents during
 ```
 root/
 ├── defaults/
-│   └── startup.sh                              # User startup script (runs from image)
+│   ├── startup.sh                              # User startup script (runs from image)
+│   └── install-copilot.sh                      # GitHub Copilot installer script
 ├── etc/s6-overlay/s6-rc.d/
 │   ├── init-claude-code-config/                # Root init service
 │   │   ├── dependencies.d/                     # Runs after these base services
@@ -198,7 +200,7 @@ A configuration file is automatically created at `/config/.claude/config.json`:
 - No need for Docker image rebuilds to update Claude Code
 - Setting `installationMethod: "npm-global"` eliminates diagnostic warnings
 
-**Implementation**: The startup script (`root/defaults/startup.sh:62-70`) creates this config file if it doesn't exist during container initialization.
+**Implementation**: The startup script (`root/defaults/startup.sh:72-83`) creates this config file if it doesn't exist during container initialization.
 
 ## OpenAI Codex Configuration
 
@@ -273,9 +275,9 @@ This container includes an intelligent browser helper (`/usr/local/bin/browser-h
 
 **The Solution - Automatic URL Conversion**:
 - **Location**: `root/usr/local/bin/browser-helper`
-- **Installation**: `Dockerfile:45` copies script, makes it executable
+- **Installation**: `Dockerfile:45-46` copies script, makes it executable
 - **Configuration**:
-  - `root/defaults/startup.sh:52-58` sets `BROWSER` environment variable
+  - `root/defaults/startup.sh:65-70` sets `BROWSER` environment variable
   - Set `CODE_SERVER_URL` in `.env` (e.g., `CODE_SERVER_URL=https://code.example.com`)
 - **How it works**:
   1. CLI tool tries to open `http://localhost:11003/callback?code=abc`
@@ -391,8 +393,44 @@ eamodio.gitlens
 - Extensions installed via `code-server --install-extension <id>`
 - Installed during startup script execution (runs as `abc` user)
 - Extensions stored in `/config/.local/share/code-server/extensions`
-- Installation happens in startup script after Claude Code and Happy Coder setup
+- Installation happens in startup script after Claude Code, Codex, and Gemini setup
 - Already installed extensions skipped automatically
+
+## GitHub Copilot Extensions
+
+GitHub Copilot and Copilot Chat are **automatically installed and updated** on container startup. These extensions are not available in Open VSX (code-server's default marketplace), so they are installed directly from the VS Code Marketplace.
+
+**How it works:**
+- The installer script (`root/defaults/install-copilot.sh`) queries the VS Code Marketplace API
+- It finds the latest compatible version based on code-server's VS Code version
+- Compares installed version with latest available version
+- Fresh installs, updates to newer versions, or skips if already up-to-date
+- Extensions are downloaded and installed as VSIX packages
+
+**Auto-update behavior:**
+- On each container restart, the script checks for newer compatible versions
+- If an update is available, it downloads and installs the new version
+- Extensions already at the latest version are skipped (no unnecessary downloads)
+- Version info is read from `/config/.local/share/code-server/extensions/` directory names
+
+**Technical details:**
+- Installation happens at end of startup script
+- Script location: `root/defaults/install-copilot.sh`
+- Requires `jq` (installed in Dockerfile)
+- Extensions installed: `GitHub.copilot`, `GitHub.copilot-chat`
+
+**Authentication:**
+After the container starts, authenticate with GitHub Copilot:
+1. Open code-server in your browser
+2. Open the Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
+3. Run "GitHub Copilot: Sign In"
+4. Follow the device code authentication flow
+
+**Troubleshooting Copilot:**
+- Check logs: `docker logs code-server-claude | grep -i copilot`
+- Verify extensions installed: In code-server, go to Extensions panel
+- Re-run installer manually: `source /defaults/install-copilot.sh && install_copilot_extensions`
+- Copilot requires a valid GitHub Copilot subscription
 
 ## Development Workflow
 
@@ -423,7 +461,7 @@ The `.github/workflows/build.yml` workflow automatically builds and pushes image
 - Scheduled runs avoid unnecessary daily builds when nothing has changed
 - Manual triggers give you control when needed
 
-**Location**: `.github/workflows/build.yml:62-75`
+**Location**: `.github/workflows/build.yml:63-75`
 
 ## Common Issues
 
