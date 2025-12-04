@@ -5,9 +5,12 @@
 
 set -e
 
+# code-server binary path (LinuxServer.io base image location)
+CODE_SERVER_BIN="${CODE_SERVER_BIN:-/app/code-server/bin/code-server}"
+
 # Extract VS Code version from code-server
 get_vscode_version() {
-    code-server --version | head -n1
+    "$CODE_SERVER_BIN" --version | head -n1
 }
 
 # Get installed version of an extension
@@ -126,7 +129,7 @@ install_extension() {
     fi
 
     # Install extension (--force overwrites existing version)
-    code-server --force --install-extension "$temp_dir/$extension_name.vsix"
+    "$CODE_SERVER_BIN" --force --install-extension "$temp_dir/$extension_name.vsix"
 
     rm -f "$temp_dir/$extension_name.vsix"
     echo "  ✓ $extension_id v$version installed successfully!"

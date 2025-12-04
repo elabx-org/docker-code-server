@@ -143,6 +143,10 @@ fi
 echo "Browser helper configured for OAuth flows in containerized environment"
 echo "CLI tools will display clickable links in code-server's terminal"
 
+# code-server binary path (LinuxServer.io base image location)
+# Export so sourced scripts (like install-copilot.sh) inherit this
+export CODE_SERVER_BIN="${CODE_SERVER_BIN:-/app/code-server/bin/code-server}"
+
 # Install VS Code extensions if specified
 install_extensions() {
     local extensions="$1"
@@ -153,7 +157,7 @@ install_extensions() {
             ext=$(echo "$ext" | xargs)  # trim whitespace
             if [ -n "$ext" ]; then
                 echo "  Installing: $ext"
-                code-server --install-extension "$ext" 2>&1 | grep -v "already installed" || true
+                "$CODE_SERVER_BIN" --install-extension "$ext" 2>&1 | grep -v "already installed" || true
             fi
         done
     fi
@@ -173,7 +177,7 @@ if [ -f /config/extensions.txt ]; then
         ext=$(echo "$ext" | xargs)  # trim whitespace
         if [ -n "$ext" ]; then
             echo "  Installing: $ext"
-            code-server --install-extension "$ext" 2>&1 | grep -v "already installed" || true
+            "$CODE_SERVER_BIN" --install-extension "$ext" 2>&1 | grep -v "already installed" || true
         fi
     done < /config/extensions.txt
 fi
