@@ -12,7 +12,8 @@ CODE_SERVER_BIN="${CODE_SERVER_BIN:-/app/code-server/bin/code-server}"
 get_vscode_version() {
     # code-server --version outputs: "4.106.3 f128a7ac113916c9c29cf8d1361ab4b7f3bd9e75 with Code 1.106.3"
     # We need the VS Code version (after "with Code "), not the code-server version
-    "$CODE_SERVER_BIN" --version | head -n1 | sed 's/.*with Code //'
+    # Use grep to find the line with "with Code", then sed to extract just the version number
+    "$CODE_SERVER_BIN" --version 2>/dev/null | grep 'with Code' | sed 's/.*with Code //' | head -n1
 }
 
 # Get installed version of an extension
