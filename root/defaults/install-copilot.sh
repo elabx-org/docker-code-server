@@ -10,7 +10,9 @@ CODE_SERVER_BIN="${CODE_SERVER_BIN:-/app/code-server/bin/code-server}"
 
 # Extract VS Code version from code-server
 get_vscode_version() {
-    "$CODE_SERVER_BIN" --version | head -n1
+    # code-server --version outputs: "4.106.3 f128a7ac113916c9c29cf8d1361ab4b7f3bd9e75 with Code 1.106.3"
+    # We need the VS Code version (after "with Code "), not the code-server version
+    "$CODE_SERVER_BIN" --version | head -n1 | sed 's/.*with Code //'
 }
 
 # Get installed version of an extension
@@ -155,7 +157,7 @@ install_copilot_extensions() {
         echo "Error: Could not extract VS Code version from code-server"
         return 1
     fi
-    echo "Detected VS Code version: $VSCODE_VERSION"
+    echo "Detected VS Code engine version: $VSCODE_VERSION"
     echo ""
 
     # Extensions to install
