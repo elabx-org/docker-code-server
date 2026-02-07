@@ -33,17 +33,20 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 # Also install Python and OpenAI package for AI development
 # Install xdg-utils for browser helper support in containerized environment
 RUN apt-get update && \
-    apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils jq && \
+    apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils jq tmux \
+    ripgrep fd-find tree shellcheck unzip zip htop strace iproute2 less && \
     rm -rf /var/lib/apt/lists/* && \
-    pip3 install --no-cache-dir --break-system-packages openai
+    pip3 install --no-cache-dir --break-system-packages openai playwright && \
+    npm install -g playwright && \
+    ln -sf "$(which fdfind)" /usr/local/bin/fd
 
 # Copy the init scripts and defaults for claude-code setup
 # The --chown=root:root ensures proper ownership for s6 scripts
 # Scripts run from /defaults/ (in image), not /config/ (persistent volume)
 COPY --chown=root:root root/ /
 
-# Make browser helper script executable
-RUN chmod +x /usr/local/bin/browser-helper
+# Make helper scripts executable
+RUN chmod +x /usr/local/bin/browser-helper /usr/local/bin/update-copilot
 
 # Add our custom services to the user bundle (don't overwrite the base image's bundle)
 # This ensures both base image and custom services run during initialization

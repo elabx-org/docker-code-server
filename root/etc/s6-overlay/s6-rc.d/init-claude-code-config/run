@@ -31,15 +31,27 @@ chown -R "${PUID}:${PGID}" /config/workspace
 
 # Fix permissions on docker socket if mounted
 if [[ -S /var/run/docker.sock ]]; then
-    echo "Docker socket detected. Adding user to docker group..."
-    # Get the GID of the docker socket
+    echo "Docker socket detected. Configuring access for abc user..."
     DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
-    
-    # Create docker group with the same GID if it doesn't exist
-    if ! getent group docker >/dev/null 2>&1; then
-        groupadd -g "${DOCKER_GID}" docker
+
+    if [ "${DOCKER_GID}" = "0" ]; then
+        # Socket owned by root group (common on Unraid) - create a docker group
+        # and fix socket permissions so non-root users can access it
+        if ! getent group docker >/dev/null 2>&1; then
+            groupadd docker
+        fi
+        chgrp docker /var/run/docker.sock
+        chmod g+rw /var/run/docker.sock
+    else
+        # Ensure docker group exists with the correct GID matching the socket
+        if ! getent group docker >/dev/null 2>&1; then
+            groupadd -g "${DOCKER_GID}" docker
+        elif [ "$(getent group docker | cut -d: -f3)" != "${DOCKER_GID}" ]; then
+            # docker group exists but with wrong GID (e.g. from docker-ce-cli package)
+            groupmod -g "${DOCKER_GID}" docker
+        fi
     fi
-    
+
     # Add abc user to docker group
     usermod -aG docker abc
 fi

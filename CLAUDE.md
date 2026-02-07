@@ -4,520 +4,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Docker-based development environment that combines LinuxServer's code-server image with AI coding assistants (Claude Code, OpenAI Codex, and Google Gemini CLI). This is a **Dockerfile project** - not a traditional application with package.json or requirements.txt. The primary deliverable is a container image, not compiled code.
+A Docker-based development environment that combines LinuxServer's code-server image with AI coding assistants (Claude Code, OpenAI Codex, Google Gemini CLI, and Happy Coder). This is a **Dockerfile project** - the primary deliverable is a container image published to `ghcr.io`.
 
-### Runtime Environment
-
-- **Node.js**: 20.x LTS (from NodeSource)
-- **npm**: 10.x (included with Node.js 20)
-- **Why LTS**: Long-term support until April 2026, modern npm features for reliable auto-updates
-- **Installation**: `Dockerfile:6-11` uses NodeSource repository for official binaries
-
-### OpenAI Integration
-
-The container includes the OpenAI Python package pre-installed for AI development:
-
-- **Package**: `openai` (latest version via pip)
-- **Python**: 3.x with pip and venv support
-- **Installation**: `Dockerfile:35-38` installs Python, pip, jq, and the OpenAI package globally
-- **Authentication**: Set `OPENAI_API_KEY` environment variable in `.env` file
-- **Usage**: Import in Python scripts: `import openai`
-- **Verification**: Startup script checks OpenAI package availability and displays version
-
-**Getting your API key:**
-1. Visit https://platform.openai.com/api-keys
-2. Create or copy your API key
-3. Add to `.env` file: `OPENAI_API_KEY=sk-...`
-4. Restart container: `docker-compose restart`
+**Base image**: `ghcr.io/linuxserver/code-server:latest`
+**Runtime**: Node.js 20.x LTS (NodeSource), Python 3.x, Docker CLI, GitHub CLI
+**Published to**: `ghcr.io/<owner>/docker-code-server:latest`
 
 ## Build and Test Commands
 
-### Build the Docker image locally
 ```bash
+# Build locally
 docker build -t code-server-claude .
-```
 
-### Run the container
-```bash
-# Using docker-compose (recommended)
+# Run with docker-compose (recommended)
 docker-compose up -d
 
-# Using docker run
-docker run -d \
-  --name=code-server-claude \
-  -e PUID=1000 \
-  -e PGID=1000 \
-  -e TZ=Etc/UTC \
-  -p 8443:8443 \
-  -v ./config:/config \
-  -v ./workspace:/config/workspace \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  code-server-claude
-```
-
-### Check container logs
-```bash
+# Check logs (primary way to verify init sequence)
 docker logs code-server-claude
+
+# Rebuild without cache (needed after s6 service changes)
+docker-compose build --no-cache
+
+# Access: http://localhost:8443
 ```
 
-### Access the environment
-- Web interface: http://localhost:8443
-- Terminal: Open terminal in web interface
-- Claude Code authentication: Run `claude setup-token` in terminal
-- OpenAI Codex authentication: Run `codex` and select "Sign in with ChatGPT" (for Plus/Pro/Team)
-- Google Gemini authentication: Run `gemini` and sign in with Google account
-- GitHub authentication: Run `gh auth login` in terminal
-- Happy Coder (optional): Run `happy` instead of `claude` for remote mobile access
+There are no unit tests, linters, or compilation steps. Testing means building the image and verifying the init sequence in container logs.
 
 ## Architecture
 
-### Init System: s6-overlay Integration
+### Init System: s6-overlay (Two Custom Services)
 
-This project uses LinuxServer.io's s6-overlay init system with **two custom services** that integrate into the base image's service bundle:
+The container uses LinuxServer.io's s6-overlay init system. The initialization chain is:
 
-**1. init-claude-code-config** (runs as root, oneshot)
-- **Dependencies**: Runs after `init-adduser`, `init-config`, and `init-mods-end` from base image
-- **Location**: `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run`
-- **Purpose**: Creates application directories and configures Docker socket access
-- **Actions**:
-  - Creates `/config/.claude`, `/config/.codex`, `/config/.gemini`, `/config/.npm`, `/config/.npm-global`, `/config/scripts`, `/config/workspace`
-  - Sets ownership on created directories using `chown "${PUID}:${PGID}"`
-  - Adds `abc` user to docker group for socket access
-- **Note**: Must explicitly set ownership since it runs after base image's init phase
+```
+Base image services (init-adduser, init-config, init-mods-end)
+  └─> init-claude-code-config  (root, oneshot)
+        └─> svc-claude-code-startup  (user abc, oneshot)
+```
 
-**2. svc-claude-code-startup** (runs as user `abc`, oneshot)
-- **Dependencies**: Runs after `init-claude-code-config`
-- **Location**: `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run`
-- **Purpose**: User-level initialization
-- **Actions**: Executes `/defaults/startup.sh` as the `abc` user (runs from image, not persistent volume)
-- **Script tasks**:
-  - Sets up default git config
-  - Configures npm to use `/config/.npm-global` for global packages
-  - Installs Claude Code, OpenAI Codex, Google Gemini CLI, and Happy Coder to `/config/.npm-global` if not present
-  - Creates auto-update config at `/config/.claude/config.json`
-  - Verifies Claude Code, Codex, Gemini, Happy Coder, and Docker access
-  - Installs VS Code extensions from `VSCODE_EXTENSIONS` env var or `/config/extensions.txt` file
-  - Installs GitHub Copilot extensions from VS Code Marketplace
+**1. init-claude-code-config** — `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run`
+- Runs as **root** after base image init completes
+- Creates directories: `/config/.claude`, `/config/.codex`, `/config/.gemini`, `/config/.npm`, `/config/.npm-global`, `/config/scripts`, `/config/workspace`
+- Sets ownership via `chown "${PUID}:${PGID}"` (required because this runs after base image's ownership pass)
+- Adds `abc` user to docker group for socket access
 
-### Critical Implementation Detail: Service Bundle Integration
+**2. svc-claude-code-startup** — `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run`
+- Runs as **user `abc`**, executes `/defaults/startup.sh`
+- Configures npm prefix to `/config/.npm-global`
+- Installs AI tools (Claude Code, Codex, Gemini CLI, Happy Coder) via npm if not present
+- Creates Claude auto-update config at `/config/.claude/config.json`
+- Installs VS Code extensions and GitHub Copilot
+- Sets `BROWSER=/usr/local/bin/browser-helper` for OAuth flows
 
-In `Dockerfile:50-51`, custom services are added to the base image's `user` bundle using:
+### Critical: Service Bundle Integration
+
+In `Dockerfile:50-51`, services are registered using `touch`:
 ```dockerfile
 RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup
 ```
-
-**Why this matters**:
-- LinuxServer's base image has its own services in the `user` bundle, including critical PUID/PGID handling
-- Copying a complete `user/contents.d/` directory would overwrite those services and break permission management
-- Using `touch` adds our services alongside the base image's services rather than replacing them
-- This ensures both base image services AND custom services execute during container initialization
+**Never copy a complete `user/contents.d/` directory** — this would overwrite base image services and break PUID/PGID handling. Always use `touch` to add services alongside existing ones.
 
 ### PUID/PGID Permission Model
 
-The base image handles PUID/PGID ownership of existing `/config` contents during its init phase. However, custom services that run AFTER the base image's init must explicitly set ownership on any new directories they create:
-- Use `mkdir -p` to create directories
-- Use `chown "${PUID}:${PGID}"` to set ownership on created directories
-- PUID and PGID environment variables are available via the `with-contenv` shebang
-- This is necessary because our init service runs after the base image's ownership pass
+The base image handles ownership of existing `/config` contents during its init phase. Custom services that run **after** base init must explicitly `chown` any directories they create. PUID/PGID are available via the `with-contenv` shebang.
 
-## File Structure
+### Claude Code Native Install
 
-```
-root/
-├── defaults/
-│   ├── startup.sh                              # User startup script (runs from image)
-│   └── install-copilot.sh                      # GitHub Copilot installer script
-├── etc/s6-overlay/s6-rc.d/
-│   ├── init-claude-code-config/                # Root init service
-│   │   ├── dependencies.d/                     # Runs after these base services
-│   │   │   ├── init-adduser
-│   │   │   ├── init-config
-│   │   │   └── init-mods-end
-│   │   ├── run                                 # The actual init script
-│   │   ├── type                                # "oneshot"
-│   │   └── up                                  # Empty (successful completion)
-│   └── svc-claude-code-startup/                # User startup service
-│       ├── dependencies.d/
-│       │   └── init-claude-code-config         # Runs after root init
-│       ├── run                                 # Executes /defaults/startup.sh as abc user
-│       ├── type                                # "oneshot"
-│       └── up                                  # Empty (successful completion)
-└── usr/local/bin/
-    └── browser-helper                          # OAuth URL converter for containers
-```
+Claude Code uses the official native installer (`curl -fsSL https://claude.ai/install.sh | bash`). The binary installs to `~/.local/bin/claude` (`/config/.local/bin/claude`) with data at `~/.local/share/claude`. Auto-updates happen in the background — no `config.json` needed. The npm installation method is deprecated.
 
-## Key Environment Variables
+### npm Global Install (Other Tools)
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| PUID | User ID for file permissions | 1000 |
-| PGID | Group ID for file permissions | 1000 |
-| TZ | Container timezone | Etc/UTC |
-| PASSWORD | Code-server web password | - |
-| SUDO_PASSWORD | Sudo password for terminal | - |
-| DEFAULT_WORKSPACE | Default workspace path | /config/workspace |
-| PROXY_DOMAIN | Domain for subdomain proxying | - |
-| VSCODE_EXTENSIONS | Comma-separated list of extension IDs | - |
-| OPENAI_API_KEY | OpenAI API key for using OpenAI services | - |
-| GOOGLE_API_KEY | Google API key for Gemini CLI (alternative to OAuth) | - |
-| CODE_SERVER_URL | Your code-server URL for OAuth proxy conversion (e.g., https://code.example.com) | - |
+Happy Coder, Codex, and Gemini CLI install to `/config/.npm-global` (persistent volume, owned by `abc` user). This means:
+- Tools auto-update without root or image rebuilds
+- Updates persist across container restarts
+- The startup script only installs if the binary doesn't exist (`[ ! -x /config/.npm-global/bin/<tool> ]`)
+- PATH includes both `~/.local/bin` and `/config/.npm-global/bin` via `~/.bashrc`
 
-## Volume Mounts
+npm packages: `happy-coder`, `@openai/codex`, `@google/gemini-cli`
 
-| Container Path | Purpose | Notes |
-|----------------|---------|-------|
-| /config | Persistent configuration | All user data, .claude/ config |
-| /config/workspace | Project workspace | Default working directory |
-| /var/run/docker.sock | Docker socket | Read-only, for Docker CLI access |
+### Browser Helper (OAuth in Containers)
 
-## Claude Code Configuration
+`root/usr/local/bin/browser-helper` converts `localhost:PORT` OAuth callback URLs to code-server proxy URLs (`CODE_SERVER_URL/proxy/PORT/...`). Set `CODE_SERVER_URL` env var to enable. Without it, URLs are displayed as-is. The `BROWSER` env var is set in `startup.sh` to point to this script.
 
-Claude Code is installed in `/config/.npm-global` and runs as the `abc` user. This allows Claude Code to auto-update itself without requiring Docker image rebuilds. Since `/config` is a persistent volume owned by the `abc` user, updates persist across container restarts.
+### GitHub Copilot Auto-Install
 
-**Installation Architecture**:
-- **Runtime init** (`root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run:16`): Creates `/config/.npm-global` directory with proper ownership
-- **Startup script** (`root/defaults/startup.sh:15-32`):
-  - Configures npm prefix to `/config/.npm-global`
-  - Installs Claude Code and Happy Coder to `/config/.npm-global` if not present
-  - Adds `/config/.npm-global/bin` to PATH in `~/.bashrc`
+`root/defaults/install-copilot.sh` queries the VS Code Marketplace API to find the latest compatible Copilot/Copilot Chat versions, compares with installed versions, and downloads VSIX packages as needed. It runs at the end of `startup.sh` via `source`. Requires `jq` (installed in Dockerfile).
 
-**Auto-update Configuration**:
-A configuration file is automatically created at `/config/.claude/config.json`:
+## Key Files
 
-```json
-{
-  "installationMethod": "npm-global",
-  "autoUpdate": true
-}
-```
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Image build definition (68 lines) |
+| `docker-compose.yml` | Container orchestration with env vars |
+| `root/defaults/startup.sh` | Main user-level init script (runs as `abc`) |
+| `root/defaults/install-copilot.sh` | Copilot extension installer/updater |
+| `root/usr/local/bin/browser-helper` | OAuth URL converter for containerized env |
+| `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run` | Root init (dirs, permissions, docker group) |
+| `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run` | User init (calls startup.sh) |
+| `.github/workflows/build.yml` | CI/CD: build + push to GHCR |
+| `.claude/settings.local.json` | Pre-approved Claude Code permissions |
 
-**Why this architecture**:
-- `/config` is already owned by the `abc` user (no permission issues)
-- `/config` is a persistent volume (updates survive container restarts)
-- Auto-updates work without permission errors
-- Users get the latest Claude Code features automatically
-- No need for Docker image rebuilds to update Claude Code
-- Setting `installationMethod: "npm-global"` eliminates diagnostic warnings
+## Environment Variables
 
-**Implementation**: The startup script (`root/defaults/startup.sh:72-83`) creates this config file if it doesn't exist during container initialization.
+| Variable | Purpose |
+|----------|---------|
+| `PUID` / `PGID` | User/group ID for file permissions (default: 1000) |
+| `PASSWORD` | Code-server web password |
+| `SUDO_PASSWORD` | Sudo password for terminal |
+| `VSCODE_EXTENSIONS` | Comma-separated extension IDs to install on startup |
+| `OPENAI_API_KEY` | OpenAI API key (Codex CLI + Python package) |
+| `GOOGLE_API_KEY` | Google API key for Gemini CLI |
+| `CODE_SERVER_URL` | Your code-server URL for OAuth proxy conversion |
+| `CODE_SERVER_BIN` | code-server binary path (default: `/app/code-server/bin/code-server`) |
 
-## OpenAI Codex Configuration
+## CI/CD Pipeline
 
-OpenAI Codex CLI is installed in `/config/.npm-global` alongside Claude Code, using the same auto-update architecture.
+`.github/workflows/build.yml` builds multi-arch images (`linux/amd64`, `linux/arm64`) and pushes to GHCR.
 
-**Installation Architecture**:
-- **Startup script** (`root/defaults/startup.sh:34-45`): Installs Codex CLI to `/config/.npm-global` if not present
-- **Config directory**: `/config/.codex` is created by init script with proper ownership
-- **Auto-updates**: Codex can auto-update itself since it's in the user-writable `/config` volume
-- **PATH**: Added to `~/.bashrc` automatically
+**Build triggers:**
+- **Push to main/develop**: Always builds
+- **Pull requests**: Always builds
+- **Scheduled (daily 2 AM UTC)**: Only builds if upstream `linuxserver/code-server:latest` digest changed (cached via GitHub Actions cache)
+- **Manual**: Respects `force_build` parameter
 
-**Authentication Options**:
-Codex offers two authentication methods:
-
-1. **Sign in with ChatGPT (Recommended for ChatGPT Plus/Pro/Team users)**:
-   ```bash
-   codex
-   ```
-   - Select "Sign in with ChatGPT" when prompted
-   - Usage included with your ChatGPT Plus, Pro, or Team plan
-   - No additional API costs
-
-2. **Use OpenAI API Key (Pay-as-you-go)**:
-   - Set `OPENAI_API_KEY` in your `.env` file
-   - Get your API key from https://platform.openai.com/api-keys
-   - Billed separately based on usage
-
-**Why this architecture**:
-- Same benefits as Claude Code installation (persistent, auto-updating)
-- Users can choose between ChatGPT subscription or API billing
-- Both AI assistants (Claude & Codex) available side-by-side
-
-## Google Gemini CLI Configuration
-
-Google Gemini CLI is installed in `/config/.npm-global` alongside Claude Code and Codex, using the same auto-update architecture.
-
-**Installation Architecture**:
-- **Startup script** (`root/defaults/startup.sh:47-58`): Installs Gemini CLI to `/config/.npm-global` if not present
-- **Config directory**: `/config/.gemini` is created by init script with proper ownership
-- **Auto-updates**: Gemini can auto-update itself since it's in the user-writable `/config` volume
-- **PATH**: Added to `~/.bashrc` automatically
-
-**Authentication Options**:
-Gemini CLI offers two authentication methods:
-
-1. **Sign in with Google account (Recommended)**:
-   ```bash
-   gemini
-   ```
-   - Select sign-in option when prompted
-   - Free tier: 60 requests/min and 1,000 requests/day
-   - Access to Gemini 2.5 Pro with 1M token context window
-
-2. **Use Google API Key**:
-   - Set `GOOGLE_API_KEY` in your `.env` file
-   - Get your API key from https://aistudio.google.com/apikey
-   - Optionally set `GOOGLE_GENAI_USE_VERTEXAI=true` for Vertex AI
-
-**Features**:
-- Built-in tools: Google Search grounding, file operations, shell commands
-- MCP (Model Context Protocol) support for custom integrations
-- Terminal-first design for developers
-
-## Browser Helper for OAuth in Containers
-
-This container includes an intelligent browser helper (`/usr/local/bin/browser-helper`) that **automatically converts localhost OAuth callback URLs to code-server proxy URLs**, enabling seamless OAuth authentication for CLI tools in containerized environments.
-
-**The Problem**: CLI tools that use OAuth open `http://localhost:PORT/callback` URLs. In a Docker container accessed remotely (e.g., `https://code.example.com`), these localhost URLs don't work because:
-- Your browser is on your host machine
-- The OAuth callback server is inside the container
-- The localhost URL points to YOUR machine, not the container
-
-**The Solution - Automatic URL Conversion**:
-- **Location**: `root/usr/local/bin/browser-helper`
-- **Installation**: `Dockerfile:45-46` copies script, makes it executable
-- **Configuration**:
-  - `root/defaults/startup.sh:65-70` sets `BROWSER` environment variable
-  - Set `CODE_SERVER_URL` in `.env` (e.g., `CODE_SERVER_URL=https://code.example.com`)
-- **How it works**:
-  1. CLI tool tries to open `http://localhost:11003/callback?code=abc`
-  2. Browser helper automatically converts to: `https://code.example.com/proxy/11003/callback?code=abc`
-  3. Displays the converted URL as a clickable link in terminal
-  4. You click the link - OAuth completes successfully through code-server's built-in proxy!
-
-**Configuration Example**:
-```bash
-# In your .env file
-CODE_SERVER_URL=https://code.elabx.app
-
-# Then OAuth authentication works seamlessly:
-codex                    # Select "Sign in with ChatGPT"
-gh auth login           # Select "Login with a web browser"
-```
-
-**Supported Tools**:
-- `gh auth login` - GitHub CLI OAuth (browser flow)
-- `codex` - OpenAI Codex sign-in with ChatGPT
-- Any CLI tool that uses localhost OAuth callbacks and respects `BROWSER` environment variable
-
-**Technical Details**:
-- Converts both `localhost:PORT` and `127.0.0.1:PORT` patterns
-- Preserves query parameters and paths in the conversion
-- Works with code-server's built-in `/proxy/PORT/` feature
-- Handles trailing slashes correctly
-- Falls back to displaying original URL if `CODE_SERVER_URL` is not set
-
-**Without CODE_SERVER_URL**: The helper still displays URLs clearly with instructions to manually convert them to proxy URLs.
-
-**Alternative Methods**: Token-based authentication (`claude setup-token`, device flow) works without the browser helper.
-
-## Remote Access with Happy Coder
-
-This container includes [Happy Coder](https://github.com/slopus/happy), which enables remote monitoring and control of Claude Code sessions from mobile devices with end-to-end encryption.
-
-### Features
-- Monitor Claude Code sessions from iOS, Android, or web
-- Receive push notifications when Claude needs permissions or encounters errors
-- Seamlessly switch between mobile and desktop control
-- End-to-end encryption keeps your code secure
-
-### Usage
-Instead of running `claude`, use the `happy` wrapper:
-
-```bash
-# Standard usage
-happy
-
-# The happy wrapper works exactly like claude but adds remote capabilities
-# Press any key on your desktop to return control from mobile
-```
-
-### Setup
-
-1. **Authenticate Claude Code** (if not already done):
-   ```bash
-   claude setup-token
-   ```
-
-2. **Download the mobile app**:
-   - iPhone/iPad: [iOS App Store](https://apps.apple.com/app/happy-coder)
-   - Android: Google Play
-   - Web: https://app.happy.engineering
-
-3. **Pair your CLI with the mobile app**:
-   ```bash
-   # Generate QR code for pairing
-   happy --auth
-   ```
-   - The command displays a QR code and secret code
-   - Scan the QR code with your mobile app to establish the connection
-   - Alternatively, manually enter the secret code in the app
-
-4. **Start using Happy**:
-   ```bash
-   # Run happy instead of claude
-   happy
-   ```
-
-5. **Control switching**:
-   - Press any key on your desktop keyboard to take back control from mobile
-   - The session seamlessly switches between local and remote mode
-
-### When to Use Happy Coder
-- Monitor long-running AI tasks while away from your desk
-- Get notified when Claude needs permission to proceed
-- Review and approve changes from your phone
-- Useful for keeping tabs on containerized development sessions
-
-## VS Code Extensions
-
-Extensions can be installed automatically on container startup:
-
-### Method 1: Environment Variable
-Set `VSCODE_EXTENSIONS` in `.env`:
-```bash
-VSCODE_EXTENSIONS=ms-python.python,dbaeumer.vscode-eslint,eamodio.gitlens
-```
-
-### Method 2: Extensions File
-Create `/config/extensions.txt` with one extension ID per line:
-```
-# Python
-ms-python.python
-
-# Git
-eamodio.gitlens
-```
-
-**Technical details:**
-- Extensions installed via `code-server --install-extension <id>`
-- Installed during startup script execution (runs as `abc` user)
-- Extensions stored in `/config/.local/share/code-server/extensions`
-- Installation happens in startup script after Claude Code, Codex, and Gemini setup
-- Already installed extensions skipped automatically
-
-## GitHub Copilot Extensions
-
-GitHub Copilot and Copilot Chat are **automatically installed and updated** on container startup. These extensions are not available in Open VSX (code-server's default marketplace), so they are installed directly from the VS Code Marketplace.
-
-**How it works:**
-- The installer script (`root/defaults/install-copilot.sh`) queries the VS Code Marketplace API
-- It finds the latest compatible version based on code-server's VS Code version
-- Compares installed version with latest available version
-- Fresh installs, updates to newer versions, or skips if already up-to-date
-- Extensions are downloaded and installed as VSIX packages
-
-**Auto-update behavior:**
-- On each container restart, the script checks for newer compatible versions
-- If an update is available, it downloads and installs the new version
-- Extensions already at the latest version are skipped (no unnecessary downloads)
-- Version info is read from `/config/.local/share/code-server/extensions/` directory names
-
-**Technical details:**
-- Installation happens at end of startup script
-- Script location: `root/defaults/install-copilot.sh`
-- Requires `jq` (installed in Dockerfile)
-- Extensions installed: `GitHub.copilot`, `GitHub.copilot-chat`
-
-**Authentication:**
-After the container starts, authenticate with GitHub Copilot:
-1. Open code-server in your browser
-2. Open the Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
-3. Run "GitHub Copilot: Sign In"
-4. Follow the device code authentication flow
-
-**Troubleshooting Copilot:**
-- Check logs: `docker logs code-server-claude | grep -i copilot`
-- Verify extensions installed: In code-server, go to Extensions panel
-- Re-run installer manually: `source /defaults/install-copilot.sh && install_copilot_extensions`
-- Copilot requires a valid GitHub Copilot subscription
+**Tagging strategy** (via `docker/metadata-action`):
+- `latest` on default branch pushes
+- Branch name on branch pushes
+- `pr-N` on pull requests
+- `<branch>-sha-<hash>` for every build
+- Semver tags when applicable
 
 ## Development Workflow
 
-When modifying this container:
-
-1. **For Dockerfile changes**: Build locally, test with docker-compose, verify init sequence in logs
-2. **For s6 service changes**:
-   - Modify scripts in `root/etc/s6-overlay/s6-rc.d/`
-   - Check dependencies are correct
-   - Verify service runs at expected stage (root vs user context)
-   - Never copy complete `user/contents.d/` directory in Dockerfile
-3. **For startup script changes**: Modify `root/defaults/startup.sh`
-4. **Testing**: Check container logs for init sequence, verify permissions with `ls -la /config/`
-5. **For extension changes**: Test with small extension list first, check logs for installation output
-
-### GitHub Workflow Build Behavior
-
-The `.github/workflows/build.yml` workflow automatically builds and pushes images with the following logic:
-
-**When builds happen:**
-- **Push to main/develop**: Always builds (regardless of upstream changes)
-- **Pull requests**: Always builds (for testing)
-- **Manual trigger**: Respects `force_build` parameter
-- **Scheduled (daily at 2 AM UTC)**: Only builds if upstream `linuxserver/code-server:latest` has changed
-
-**Why this design:**
-- Code changes (push/PR) should always trigger builds to test your modifications
-- Scheduled runs avoid unnecessary daily builds when nothing has changed
-- Manual triggers give you control when needed
-
-**Location**: `.github/workflows/build.yml:63-75`
+1. **Dockerfile changes**: Build locally, test with `docker-compose up -d`, verify init in logs
+2. **s6 service changes**: Modify scripts in `root/etc/s6-overlay/s6-rc.d/`, verify dependencies, never copy full `user/contents.d/`
+3. **Startup script changes**: Edit `root/defaults/startup.sh`, rebuild and check logs
+4. **Testing**: `docker logs code-server-claude` to verify init, `docker exec -it code-server-claude ls -la /config/` for permissions
 
 ## Common Issues
 
-### OAuth Authentication in Container
-
-**✅ Solution - Automatic URL Conversion (Configured)**:
-Set `CODE_SERVER_URL` in your `.env` file to enable automatic localhost-to-proxy URL conversion:
-
-```bash
-# In .env
-CODE_SERVER_URL=https://code.elabx.app
-```
-
-After setting this, OAuth authentication works seamlessly:
-1. Run `codex` or `gh auth login`
-2. The browser helper automatically converts `localhost:PORT` to `CODE_SERVER_URL/proxy/PORT/`
-3. Click the converted URL in the terminal
-4. Complete authentication in your browser
-5. Done! OAuth callback completes successfully
-
-**Supported OAuth Flows**:
-- `gh auth login` - GitHub CLI (browser flow)
-- `codex` - OpenAI Codex with ChatGPT sign-in
-- Any CLI tool using localhost OAuth callbacks
-
-**If OAuth still doesn't work**:
-1. **Verify CODE_SERVER_URL**: Must match your actual code-server URL (including https://)
-2. **Check code-server accessibility**: Ensure `/proxy/PORT/` paths work (test with a simple HTTP server)
-3. **Alternative - Device Flow**: Use `gh auth login` and select device flow (copy/paste code)
-4. **Alternative - Token Auth**: Use `claude setup-token` or API keys
-
-**Technical Note**: The `BROWSER` environment variable is automatically set to `/usr/local/bin/browser-helper` which intelligently converts localhost URLs and displays clickable links in code-server's terminal
-
-### Claude Code authentication fails
-- Use `claude setup-token` for token-based authentication
-- Check `/config/.claude/` exists and has correct ownership (run `ls -la /config/.claude`)
-
-### Docker commands fail with permission denied
-- Verify `/var/run/docker.sock` is mounted
-- Check user is in docker group: `groups` should show `docker`
-- Service `init-claude-code-config` should add user to group at init
-
-### File permission issues on mounted volumes
-- Verify PUID/PGID match host user: `id $USER` on host
-- Check base image's init ran: look for "GID/UID" messages in container logs
-- Verify init-claude-code-config set ownership: look for "Setting ownership" message in logs
-- If `/config/.claude` or other dirs are owned by root, the init service needs to run `chown`
-
-### Changes to s6 services not taking effect
-- Rebuild image completely: `docker-compose build --no-cache`
-- Verify services added to user bundle with `touch` command in Dockerfile
-- Check for typos in dependency file names
-
-### Extensions not installing
-- Check container logs: `docker logs code-server-claude | grep -i extension`
-- Verify extension IDs are correct (check [Open VSX](https://open-vsx.org/))
-- Check `/config/extensions.txt` has correct format (one per line, no commas)
-- Manually test: `docker exec -it code-server-claude code-server --install-extension <id>`
-- Extensions persist in `/config/.local/share/code-server/extensions`
+- **Permission issues**: Ensure any new directories created by init services get `chown "${PUID}:${PGID}"`. Base image only owns pre-existing `/config` contents.
+- **s6 services not running**: Verify `touch` entries in Dockerfile and dependency files exist with correct names.
+- **Extensions not installing**: Check extension IDs against [Open VSX](https://open-vsx.org/). Copilot comes from VS Code Marketplace (not Open VSX) via the custom installer.
+- **OAuth not working**: Set `CODE_SERVER_URL` in `.env`. Fallback: use token auth (`claude setup-token`) or device flow.
+- **Claude Code auth fails**: Run `claude setup-token`. Check `/config/.claude/` ownership.
+- **Docker permission denied**: Verify socket is mounted, check `groups` shows `docker`.

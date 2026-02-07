@@ -17,17 +17,31 @@ fi
 export PATH="/config/.npm-global/bin:$PATH"
 npm config set prefix /config/.npm-global
 
-# Install Claude Code and Codex to /config/.npm-global if not already functional
-# Check if claude binary exists AND is executable
-if [ ! -x /config/.npm-global/bin/claude ]; then
-    echo "Installing Claude Code to /config/.npm-global for auto-updates..."
-    npm install -g @anthropic-ai/claude-code happy-coder 2>&1 | tail -20
+# Install Claude Code via native installer if not already present
+# Native install puts binary at ~/.local/bin/claude with auto-updates
+export PATH="$HOME/.local/bin:$PATH"
+if [ ! -x "$HOME/.local/bin/claude" ]; then
+    echo "Installing Claude Code via native installer..."
+    curl -fsSL https://claude.ai/install.sh | bash 2>&1 | tail -20
 
     # Verify installation succeeded
-    if [ -x /config/.npm-global/bin/claude ]; then
-        echo "✓ Claude Code installed successfully"
+    if [ -x "$HOME/.local/bin/claude" ]; then
+        echo "✓ Claude Code installed successfully (native)"
     else
         echo "✗ Claude Code installation failed - check logs above"
+    fi
+fi
+
+# Install Happy Coder to /config/.npm-global if not already present
+if [ ! -x /config/.npm-global/bin/happy ]; then
+    echo "Installing Happy Coder to /config/.npm-global..."
+    npm install -g happy-coder 2>&1 | tail -20
+
+    # Verify installation succeeded
+    if [ -x /config/.npm-global/bin/happy ]; then
+        echo "✓ Happy Coder installed successfully"
+    else
+        echo "✗ Happy Coder installation failed - check logs above"
     fi
 fi
 
@@ -57,7 +71,10 @@ if [ ! -x /config/.npm-global/bin/gemini ]; then
     fi
 fi
 
-# Add /config/.npm-global/bin to PATH permanently for all shells
+# Add ~/.local/bin and /config/.npm-global/bin to PATH permanently for all shells
+if [ ! -f ~/.bashrc ] || ! grep -q '\.local/bin' ~/.bashrc; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+fi
 if [ ! -f ~/.bashrc ] || ! grep -q "/config/.npm-global/bin" ~/.bashrc; then
     echo 'export PATH="/config/.npm-global/bin:$PATH"' >> ~/.bashrc
 fi
@@ -69,17 +86,37 @@ if [ ! -f ~/.bashrc ] || ! grep -q "BROWSER=" ~/.bashrc; then
 fi
 export BROWSER="/usr/local/bin/browser-helper"
 
-# Configure Claude Code for auto-updates
-# Claude is installed in /config/.npm-global which is owned by the abc user
-# This allows Claude Code to auto-update itself
-if [ ! -f ~/.claude/config.json ]; then
-    echo "Configuring Claude Code settings..."
-    cat > ~/.claude/config.json <<'EOF'
+# Note: Claude Code native installer manages its own auto-updates
+# No config.json needed - native installs update automatically in the background
+
+# Configure tmux as default terminal in code-server
+MACHINE_SETTINGS="/config/data/Machine/settings.json"
+mkdir -p "$(dirname "$MACHINE_SETTINGS")"
+if [ ! -f "$MACHINE_SETTINGS" ]; then
+    cat > "$MACHINE_SETTINGS" <<'SETTINGS'
 {
-  "installationMethod": "npm-global",
-  "autoUpdate": true
+  "terminal.integrated.defaultProfile.linux": "tmux",
+  "terminal.integrated.profiles.linux": {
+    "tmux": {
+      "path": "/usr/bin/tmux",
+      "args": ["new-session", "-A", "-s", "main"]
+    }
+  }
 }
-EOF
+SETTINGS
+    echo "Configured tmux as default terminal profile"
+elif ! grep -q '"terminal.integrated.defaultProfile.linux"' "$MACHINE_SETTINGS"; then
+    # Merge tmux settings into existing settings using jq
+    jq '. + {
+      "terminal.integrated.defaultProfile.linux": "tmux",
+      "terminal.integrated.profiles.linux": (."terminal.integrated.profiles.linux" // {} | . + {
+        "tmux": {
+          "path": "/usr/bin/tmux",
+          "args": ["new-session", "-A", "-s", "main"]
+        }
+      })
+    }' "$MACHINE_SETTINGS" > "${MACHINE_SETTINGS}.tmp" && mv "${MACHINE_SETTINGS}.tmp" "$MACHINE_SETTINGS"
+    echo "Added tmux as default terminal profile to existing settings"
 fi
 
 # Check if claude-code is available

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Update GitHub Copilot extensions for code-server
+export CODE_SERVER_BIN="${CODE_SERVER_BIN:-/app/code-server/bin/code-server}"
+source /defaults/install-copilot.sh
+install_copilot_extensions
