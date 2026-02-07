@@ -58,8 +58,8 @@ RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
 # Set environment variables
 ENV DOCKER_HOST="unix:///var/run/docker.sock"
 
-# Expose code-server port
-EXPOSE 8443
+# Expose code-server and agentboard ports
+EXPOSE 8443 4040
 
 # Volume for docker socket
 VOLUME /var/run/docker.sock

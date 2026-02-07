@@ -58,6 +58,19 @@ if [ ! -x /config/.npm-global/bin/codex ]; then
     fi
 fi
 
+# Install Agentboard if not already present
+if [ ! -x /config/.npm-global/bin/agentboard ]; then
+    echo "Installing Agentboard to /config/.npm-global..."
+    npm install -g @gbasin/agentboard 2>&1 | tail -20
+
+    # Verify installation succeeded
+    if [ -x /config/.npm-global/bin/agentboard ]; then
+        echo "✓ Agentboard installed successfully"
+    else
+        echo "✗ Agentboard installation failed - check logs above"
+    fi
+fi
+
 # Install Google Gemini CLI if not already functional
 if [ ! -x /config/.npm-global/bin/gemini ]; then
     echo "Installing Google Gemini CLI to /config/.npm-global for auto-updates..."
@@ -151,6 +164,12 @@ if command -v gemini >/dev/null 2>&1; then
     echo "  - Option 2: Use API key - set GOOGLE_API_KEY environment variable"
 else
     echo "Warning: Google Gemini CLI not found"
+fi
+
+# Check if agentboard is available
+if command -v agentboard >/dev/null 2>&1; then
+    echo "Agentboard is installed and ready"
+    echo "Usage: Run 'agentboard' to monitor AI agent sessions (port 4040)"
 fi
 
 # Check if OpenAI Python package is available

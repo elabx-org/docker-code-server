@@ -25,6 +25,7 @@ services:
       # - ~/.gitconfig:/config/.gitconfig:ro # For git config
     ports:
       - "8443:8443"
+      - "4040:4040"   # Agentboard - AI agent session monitoring
     restart: unless-stopped
     # Optional: Add to enable GPU support
     # deploy:
