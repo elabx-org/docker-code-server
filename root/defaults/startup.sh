@@ -102,34 +102,34 @@ export BROWSER="/usr/local/bin/browser-helper"
 # Note: Claude Code native installer manages its own auto-updates
 # No config.json needed - native installs update automatically in the background
 
-# Configure tmux as default terminal in code-server
-MACHINE_SETTINGS="/config/data/Machine/settings.json"
-mkdir -p "$(dirname "$MACHINE_SETTINGS")"
-if [ ! -f "$MACHINE_SETTINGS" ]; then
-    cat > "$MACHINE_SETTINGS" <<'SETTINGS'
+# Configure tmux as default terminal in code-server (only if tmux is installed)
+if command -v tmux >/dev/null 2>&1; then
+    MACHINE_SETTINGS="/config/data/Machine/settings.json"
+    mkdir -p "$(dirname "$MACHINE_SETTINGS")"
+    if [ ! -f "$MACHINE_SETTINGS" ]; then
+        cat > "$MACHINE_SETTINGS" <<'SETTINGS'
 {
   "terminal.integrated.defaultProfile.linux": "tmux",
   "terminal.integrated.profiles.linux": {
     "tmux": {
-      "path": "/usr/bin/tmux",
-      "args": ["new-session", "-A", "-s", "main"]
+      "path": "/usr/local/bin/tmux-shell"
     }
   }
 }
 SETTINGS
-    echo "Configured tmux as default terminal profile"
-elif ! grep -q '"terminal.integrated.defaultProfile.linux"' "$MACHINE_SETTINGS"; then
-    # Merge tmux settings into existing settings using jq
-    jq '. + {
-      "terminal.integrated.defaultProfile.linux": "tmux",
-      "terminal.integrated.profiles.linux": (."terminal.integrated.profiles.linux" // {} | . + {
-        "tmux": {
-          "path": "/usr/bin/tmux",
-          "args": ["new-session", "-A", "-s", "main"]
-        }
-      })
-    }' "$MACHINE_SETTINGS" > "${MACHINE_SETTINGS}.tmp" && mv "${MACHINE_SETTINGS}.tmp" "$MACHINE_SETTINGS"
-    echo "Added tmux as default terminal profile to existing settings"
+        echo "Configured tmux as default terminal profile"
+    elif ! grep -q '"terminal.integrated.defaultProfile.linux"' "$MACHINE_SETTINGS"; then
+        # Merge tmux settings into existing settings using jq
+        jq '. + {
+          "terminal.integrated.defaultProfile.linux": "tmux",
+          "terminal.integrated.profiles.linux": (."terminal.integrated.profiles.linux" // {} | . + {
+            "tmux": {
+              "path": "/usr/local/bin/tmux-shell"
+            }
+          })
+        }' "$MACHINE_SETTINGS" > "${MACHINE_SETTINGS}.tmp" && mv "${MACHINE_SETTINGS}.tmp" "$MACHINE_SETTINGS"
+        echo "Added tmux as default terminal profile to existing settings"
+    fi
 fi
 
 # Check if claude-code is available
