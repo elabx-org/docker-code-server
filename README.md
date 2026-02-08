@@ -1,22 +1,25 @@
 # Enhanced Code-Server with AI Coding Assistants
 
-A Docker image that enhances the [linuxserver/code-server](https://github.com/linuxserver/docker-code-server) with AI coding assistants (Claude Code, OpenAI Codex & Google Gemini CLI) and essential development tools.
+A Docker image that enhances the [linuxserver/code-server](https://github.com/linuxserver/docker-code-server) with AI coding assistants and essential development tools.
 
 ## Features
 
 - **Base**: Latest linuxserver/code-server image
-- **Claude Code**: Anthropic's AI coding assistant with terminal access
+- **Claude Code**: Anthropic's AI coding assistant (native installer with auto-updates)
+- **Claude Code UI**: Web-based mobile/remote interface for Claude Code sessions (port 3001)
 - **OpenAI Codex**: OpenAI's AI coding assistant (works with ChatGPT Plus/Pro/Team)
-- **Google Gemini CLI**: Google's AI coding assistant with 1M token context window (free tier available)
+- **Google Gemini CLI**: Google's AI coding assistant with 1M token context window
 - **Happy Coder**: Remote mobile access to Claude Code sessions with push notifications
 - **GitHub Copilot**: Pre-installed GitHub Copilot and Copilot Chat extensions
 - **Development Tools**:
-  - Docker CLI & Docker Compose
+  - Docker CLI
   - GitHub CLI (gh)
-  - Node.js, npm, Python3, pip (with OpenAI package pre-installed)
-  - Git, ripgrep, fzf, bat, exa, tree
-  - Build tools and development dependencies
-- **Intelligent OAuth Helper**: Automatically converts localhost OAuth URLs to code-server proxy URLs for seamless authentication
+  - Node.js 20 LTS, npm, Python 3, pip
+  - ripgrep, fd, tree, shellcheck
+  - Build tools (gcc, make), htop, strace, iproute2
+  - Playwright (on-demand browser install for E2E testing)
+  - OpenAI Python package
+- **Intelligent OAuth Helper**: Automatically converts localhost OAuth URLs to code-server proxy URLs
 - **Auto-Updates**: Workflow automatically builds when upstream image updates
 - **Multi-Architecture**: Supports both AMD64 and ARM64
 
@@ -33,7 +36,7 @@ cd docker-code-server
 2. Copy and configure environment file:
 ```bash
 cp .env.example .env
-# Edit .env with your preferences (GitHub repo, timezone, etc.)
+# Edit .env with your preferences
 # IMPORTANT: Set CODE_SERVER_URL for OAuth authentication to work
 # Example: CODE_SERVER_URL=https://code.example.com
 ```
@@ -44,6 +47,7 @@ docker-compose up -d
 ```
 
 4. Access code-server at `http://localhost:8443`
+5. Access Claude Code UI at `http://localhost:3001`
 
 ### Using Docker Run
 
@@ -54,6 +58,7 @@ docker run -d \
   -e PGID=1000 \
   -e TZ=Etc/UTC \
   -p 8443:8443 \
+  -p 3001:3001 \
   -v /path/to/config:/config \
   -v /path/to/workspace:/config/workspace \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
@@ -70,6 +75,10 @@ docker run -d \
 | `TZ` | Timezone | No | Etc/UTC |
 | `PASSWORD` | Code-server password | No | - |
 | `SUDO_PASSWORD` | Sudo password | No | - |
+| `VSCODE_EXTENSIONS` | Comma-separated extension IDs to install on startup | No | - |
+| `OPENAI_API_KEY` | OpenAI API key for Codex CLI and Python package | No | - |
+| `GOOGLE_API_KEY` | Google API key for Gemini CLI | No | - |
+| `CODE_SERVER_URL` | Your code-server URL for OAuth proxy conversion | No | - |
 
 ### PUID/PGID Usage
 
@@ -80,12 +89,12 @@ To find your user's UID and GID:
 id $USER
 ```
 
-Example output:
-```
-uid=911(username) gid=1001(groupname) groups=1001(groupname),998(docker)
-```
+## Ports
 
-Then set `PUID=911` and `PGID=1001` in your environment.
+| Port | Service |
+|------|---------|
+| 8443 | code-server (VS Code in browser) |
+| 3001 | Claude Code UI (mobile/remote web interface) |
 
 ## Volume Mounts
 
@@ -99,183 +108,95 @@ Then set `PUID=911` and `PGID=1001` in your environment.
 
 Once the container is running, open the integrated terminal in code-server.
 
-### Using Claude Code
+### Claude Code
 
-1. Authenticate with Claude Code:
-   ```bash
-   # Recommended: Token-based authentication (works with remote access)
-   claude setup-token
-
-   # Alternative: OAuth login (only works well when accessing via localhost)
-   claude auth login
-   ```
-2. Run `claude` to start using Claude Code
-
-### Using OpenAI Codex
-
-1. **Set CODE_SERVER_URL** (if not done already):
-   ```bash
-   # In your .env file
-   CODE_SERVER_URL=https://code.example.com  # Your actual code-server URL
-   ```
-
-2. Authenticate with Codex:
-   ```bash
-   # Run codex and select option 1 when prompted
-   codex
-   ```
-
-3. Select "Sign in with ChatGPT" if you have ChatGPT Plus/Pro/Team
-   - The browser helper automatically converts localhost URLs to proxy URLs
-   - Click the converted URL in the terminal
-   - Complete authentication in your browser
-   - **OAuth works seamlessly** - no manual URL editing needed!
-   - Usage included with your paid ChatGPT plan
-   - No additional API costs
-
-4. Or select "Provide your own API key" for pay-as-you-go billing
-   - Set `OPENAI_API_KEY` in your `.env` file
-   - Get your API key from https://platform.openai.com/api-keys
-
-**Note**: All three AI assistants are available side-by-side. Use whichever fits your workflow!
-
-### Using Google Gemini CLI
-
-1. **Set CODE_SERVER_URL** (if not done already):
-   ```bash
-   # In your .env file
-   CODE_SERVER_URL=https://code.example.com  # Your actual code-server URL
-   ```
-
-2. Authenticate with Gemini:
-   ```bash
-   # Run gemini and sign in when prompted
-   gemini
-   ```
-
-3. **Free tier available** - No API key required for personal use:
-   - 60 requests/min and 1,000 requests/day
-   - Access to Gemini 2.5 Pro with 1M token context window
-   - Built-in tools: Google Search, file operations, shell commands
-
-4. Or use **API key authentication**:
-   - Set `GOOGLE_API_KEY` in your `.env` file
-   - Get your API key from https://aistudio.google.com/apikey
-
-## Using Happy Coder (Remote Access)
-
-Happy Coder enables remote monitoring and control of Claude Code from your mobile device:
-
-1. **Authenticate Claude Code** (if not already done):
-   ```bash
-   claude setup-token
-   ```
-
-2. **Download the mobile app**: [iOS App Store](https://apps.apple.com/app/happy-coder), Google Play, or https://app.happy.engineering
-
-3. **Pair CLI with mobile app**:
-   ```bash
-   # Generate QR code for pairing
-   happy --auth
-   ```
-   Scan the QR code with your mobile app to connect
-
-4. **Start using Happy**:
-   ```bash
-   # Run happy instead of claude
-   happy
-   ```
-
-**Features**:
-- Monitor Claude Code sessions remotely
-- Receive push notifications when Claude needs permissions
-- Switch seamlessly between mobile and desktop control (press any key to return to desktop)
-- End-to-end encryption for code security
-
-See the [CLAUDE.md](CLAUDE.md#remote-access-with-happy-coder) for detailed usage instructions.
-
-## Using GitHub Copilot
-
-GitHub Copilot and Copilot Chat are automatically installed on container startup (they're not available in Open VSX, so we install them directly from the VS Code Marketplace).
-
-1. Open code-server in your browser
-2. Open the Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
-3. Run "GitHub Copilot: Sign In"
-4. Follow the device code authentication flow
-
-**Note:** Requires a valid GitHub Copilot subscription.
-
-## GitHub Authentication
-
-### Method 1: GitHub CLI with OAuth (Recommended)
 ```bash
-# Ensure CODE_SERVER_URL is set in your .env file first
-gh auth login
-```
-The browser helper automatically converts localhost OAuth URLs to code-server proxy URLs. Just click the converted URL in the terminal and complete authentication in your browser - it works seamlessly!
+# Authenticate (recommended for remote access)
+claude setup-token
 
-**Alternative**: Select the device flow option to use a copy/paste code (works without CODE_SERVER_URL).
-
-### Method 2: SSH Keys
-```bash
-# Copy your SSH keys to the config directory
-cp ~/.ssh/id_rsa ./config/.ssh/
-cp ~/.ssh/id_rsa.pub ./config/.ssh/
-
-# In the container terminal, configure git
-git config --global user.name "Your Name"
-git config --global user.email "your@email.com"
+# Start using Claude Code
+claude
 ```
 
-### Method 3: VS Code's Built-in GitHub Auth
-1. Click the **Accounts** icon in the bottom-left of code-server
-2. Select **"Sign in with GitHub"**
-3. Follow the OAuth flow
+### Claude Code UI (Mobile/Remote Access)
 
-**Note:** VS Code's GitHub authentication only works for UI features, not terminal commands.
+Claude Code UI starts automatically on port 3001 and provides a web interface for managing Claude Code sessions from any device, including mobile.
+
+- Access at `http://your-server:3001`
+- Add to home screen on iOS/Android for app-like experience
+- Includes interactive chat, file browser, git controls, and xterm.js terminal
+
+### OpenAI Codex
+
+```bash
+# Option 1: Sign in with ChatGPT Plus/Pro/Team
+codex
+
+# Option 2: Use API key
+export OPENAI_API_KEY=your-key
+codex
+```
+
+### Google Gemini CLI
+
+```bash
+# Option 1: Sign in with Google account (free tier: 60 req/min)
+gemini
+
+# Option 2: Use API key
+export GOOGLE_API_KEY=your-key
+gemini
+```
+
+### Happy Coder (Mobile Monitoring)
+
+```bash
+# Pair with mobile app
+happy --auth
+
+# Use instead of claude for remote monitoring
+happy
+```
+
+Download the mobile app: [iOS App Store](https://apps.apple.com/app/happy-coder) or https://app.happy.engineering
+
+### GitHub Copilot
+
+GitHub Copilot and Copilot Chat are automatically installed on container startup from the VS Code Marketplace. Open the Command Palette (Ctrl+Shift+P) and run "GitHub Copilot: Sign In".
 
 ## Installing VS Code Extensions
 
-You can automatically install VS Code extensions on container startup using two methods:
-
-### Method 1: Environment Variable (Simple)
-
-Set the `VSCODE_EXTENSIONS` variable in your `.env` file with a comma-separated list:
+### Environment Variable
 
 ```bash
 VSCODE_EXTENSIONS=ms-python.python,dbaeumer.vscode-eslint,eamodio.gitlens
 ```
 
-### Method 2: Extensions File (Recommended for many extensions)
+### Extensions File
 
-Create a file at `./config/extensions.txt` with one extension ID per line:
+Create `config/extensions.txt` with one extension ID per line:
 
-```bash
-# Copy the example file
-cp extensions.txt.example config/extensions.txt
-
-# Edit to add your extensions
-nano config/extensions.txt
 ```
-
-Example `extensions.txt`:
-```
-# Python Development
+# Python
 ms-python.python
 
-# JavaScript/TypeScript
+# JavaScript
 dbaeumer.vscode-eslint
 esbenp.prettier-vscode
-
-# Git
-eamodio.gitlens
 ```
 
-**Notes:**
-- Extensions are installed from the [Open VSX marketplace](https://open-vsx.org/)
-- Already installed extensions are skipped automatically
-- Extensions persist in `/config/.local/share/code-server/extensions`
-- You can combine both methods - environment variable and file
+Extensions are installed from the [Open VSX marketplace](https://open-vsx.org/) and persist across restarts.
+
+## GitHub Authentication
+
+```bash
+# Recommended: GitHub CLI with OAuth
+# Ensure CODE_SERVER_URL is set for proxy URL conversion
+gh auth login
+
+# Alternative: SSH keys
+# Mount your SSH keys: -v ~/.ssh:/config/.ssh:ro
+```
 
 ## Development
 
@@ -283,68 +204,31 @@ eamodio.gitlens
 
 ```bash
 docker build -t code-server-claude .
+docker-compose up -d
+docker logs code-server-claude
 ```
 
 ### Workflow
 
 The GitHub workflow automatically:
 - Checks for upstream image updates daily
-- Builds multi-architecture images
+- Builds multi-architecture images (AMD64, ARM64)
 - Pushes to GitHub Container Registry
-- Caches build layers for faster builds
-
-## Configuration
-
-### Claude Code Config
-
-Claude-code will store your authentication and configuration in `/config/.claude/` after you complete the login process. This directory is persistent across container restarts.
-
-### SSH Keys
-
-To use SSH keys with git:
-```yaml
-volumes:
-  - ~/.ssh:/config/.ssh:ro
-```
-
-### Git Configuration
-
-To persist git configuration:
-```yaml
-volumes:
-  - ~/.gitconfig:/config/.gitconfig:ro
-```
 
 ## Security Considerations
 
-- The Docker socket is mounted read-only by default
-- Consider using Docker-in-Docker for better isolation in production
+- Docker socket is mounted read-only by default
+- Claude Code UI tools are disabled by default (enable in settings)
 - Use strong passwords for code-server authentication
-- Authentication is handled through Claude.ai login (no API keys needed)
 
 ## Troubleshooting
 
-### Claude Code Not Working
-- Run `claude-code auth login` to authenticate with Claude.ai
-- Check container logs: `docker logs code-server-claude`
-- Ensure you have an active Claude Pro or Team subscription
-
-### Docker Commands Not Working
-- Verify `/var/run/docker.sock` is mounted
-- Check docker daemon is running on host
-- Ensure user has docker permissions
-
-### Permission Issues
-- Adjust `PUID` and `PGID` to match your user
-- Check volume mount permissions
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally
-5. Submit a pull request
+- **Claude Code not working**: Run `claude setup-token` to authenticate
+- **Docker commands not working**: Verify socket is mounted, check `groups` shows `docker`
+- **Permission issues**: Adjust `PUID`/`PGID` to match your user
+- **Extensions not installing**: Check IDs against [Open VSX](https://open-vsx.org/)
+- **OAuth not working**: Set `CODE_SERVER_URL` in your `.env` file
+- **Check logs**: `docker logs code-server-claude`
 
 ## License
 
@@ -354,4 +238,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [LinuxServer.io](https://linuxserver.io/) for the excellent base image
 - [Anthropic](https://anthropic.com/) for Claude Code
-- All the open-source tools included in this image
+- [Siteboon](https://github.com/siteboon/claudecodeui) for Claude Code UI
