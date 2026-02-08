@@ -2,7 +2,8 @@
 # shellcheck shell=bash
 
 # Run Claude Code UI as a long-running service (as abc user)
-# Depends on svc-claude-code-startup which installs the npm package
+# Depends on svc-claude-code-startup which installs Claude Code CLI
+# Claude Code UI is built from source at /opt/claude-code-ui during image build
 # Directory /config/.claude-code-ui is created by init-claude-code-config (as root, with correct ownership)
 
 export HOME="/config"
@@ -11,4 +12,5 @@ export CLAUDE_CLI_PATH="/config/.local/bin/claude"
 export DATABASE_PATH="/config/.claude-code-ui/auth.db"
 export PORT=3001
 
-exec s6-setuidgid abc claude-code-ui
+cd /opt/claude-code-ui
+exec s6-setuidgid abc node server/index.js

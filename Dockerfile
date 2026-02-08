@@ -40,6 +40,13 @@ RUN apt-get update && \
     npm install -g playwright && \
     ln -sf "$(which fdfind)" /usr/local/bin/fd
 
+# Install Claude Code UI from source (npm registry lags behind GitHub releases)
+RUN git clone --depth 1 https://github.com/siteboon/claudecodeui.git /opt/claude-code-ui && \
+    cd /opt/claude-code-ui && \
+    npm install --production && \
+    npm run build && \
+    npm cache clean --force
+
 # Copy the init scripts and defaults for claude-code setup
 # The --chown=root:root ensures proper ownership for s6 scripts
 # Scripts run from /defaults/ (in image), not /config/ (persistent volume)

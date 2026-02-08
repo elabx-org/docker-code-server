@@ -58,25 +58,8 @@ if [ ! -x /config/.npm-global/bin/codex ]; then
     fi
 fi
 
-# Install or update Claude Code UI (web interface for mobile/remote access)
-if [ ! -x /config/.npm-global/bin/claude-code-ui ]; then
-    echo "Installing Claude Code UI to /config/.npm-global..."
-    npm install -g @siteboon/claude-code-ui 2>&1 | tail -20
-
-    if [ -x /config/.npm-global/bin/claude-code-ui ]; then
-        echo "✓ Claude Code UI installed successfully"
-    else
-        echo "✗ Claude Code UI installation failed - check logs above"
-    fi
-else
-    # Check for updates on each restart
-    CCUI_INSTALLED=$(npm list -g @siteboon/claude-code-ui --depth=0 2>/dev/null | grep claude-code-ui | sed 's/.*@//')
-    CCUI_LATEST=$(npm view @siteboon/claude-code-ui version 2>/dev/null)
-    if [ -n "$CCUI_LATEST" ] && [ "$CCUI_INSTALLED" != "$CCUI_LATEST" ]; then
-        echo "Updating Claude Code UI: $CCUI_INSTALLED → $CCUI_LATEST"
-        npm install -g @siteboon/claude-code-ui@latest 2>&1 | tail -10
-    fi
-fi
+# Claude Code UI is built from source at /opt/claude-code-ui during image build
+# It runs as an s6 longrun service (svc-claude-code-ui) on port 3001
 
 # Install Google Gemini CLI if not already functional
 if [ ! -x /config/.npm-global/bin/gemini ]; then
@@ -159,10 +142,10 @@ else
     echo "Warning: Google Gemini CLI not found"
 fi
 
-# Check if claude-code-ui is available
-if command -v claude-code-ui >/dev/null 2>&1; then
-    echo "Claude Code UI is installed for mobile/remote access"
-    echo "Usage: Run 'claude-code-ui' to start web UI (port 3001)"
+# Check if Claude Code UI is available
+if [ -f /opt/claude-code-ui/server/index.js ]; then
+    CCUI_VERSION=$(node -e "console.log(require('/opt/claude-code-ui/package.json').version)" 2>/dev/null)
+    echo "Claude Code UI v${CCUI_VERSION} is built-in (runs as s6 service on port 3001)"
 fi
 
 # Check if OpenAI Python package is available
