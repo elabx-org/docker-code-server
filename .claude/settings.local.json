@@ -36,7 +36,12 @@
       "WebSearch",
       "Bash(git rebase:*)",
       "WebFetch(domain:www.npmjs.com)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(npm view:*)",
+      "Bash(npm install:*)",
+      "Bash(kill:*)",
+      "Bash(/config/.npm-global/bin/claude-code-ui:*)",
+      "Bash(node -e \"const p = require\\(''/config/.npm-global/lib/node_modules/@siteboon/claude-code-ui/package.json''\\); console.log\\(p.version\\)\")"
     ],
     "deny": [],
     "ask": []
