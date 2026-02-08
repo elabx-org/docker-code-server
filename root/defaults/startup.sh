@@ -102,6 +102,16 @@ export BROWSER="/usr/local/bin/browser-helper"
 # Note: Claude Code native installer manages its own auto-updates
 # No config.json needed - native installs update automatically in the background
 
+# Clean up old tmux terminal profile from settings.json (from previous image versions)
+# Previous builds wrote tmux as code-server's default terminal profile, which breaks
+# if the settings persist on the volume. We now use .bashrc auto-start instead.
+MACHINE_SETTINGS="/config/data/Machine/settings.json"
+if [ -f "$MACHINE_SETTINGS" ] && grep -q '"terminal.integrated.defaultProfile.linux".*tmux' "$MACHINE_SETTINGS" 2>/dev/null; then
+    echo "Removing old tmux terminal profile from code-server settings..."
+    jq 'del(."terminal.integrated.defaultProfile.linux") | del(."terminal.integrated.profiles.linux".tmux) | if ."terminal.integrated.profiles.linux" == {} then del(."terminal.integrated.profiles.linux") else . end' \
+        "$MACHINE_SETTINGS" > "${MACHINE_SETTINGS}.tmp" && mv "${MACHINE_SETTINGS}.tmp" "$MACHINE_SETTINGS"
+fi
+
 # Auto-start tmux in interactive shells (added to .bashrc)
 # Code-server launches bash normally, bash sources .bashrc, exec replaces bash with tmux
 if command -v tmux >/dev/null 2>&1; then
