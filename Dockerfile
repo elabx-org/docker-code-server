@@ -43,8 +43,9 @@ RUN apt-get update && \
 # Install Claude Code UI from source (npm registry lags behind GitHub releases)
 RUN git clone --depth 1 https://github.com/siteboon/claudecodeui.git /opt/claude-code-ui && \
     cd /opt/claude-code-ui && \
-    npm install --production && \
+    npm install && \
     npm run build && \
+    npm prune --production && \
     npm cache clean --force
 
 # Copy the init scripts and defaults for claude-code setup
