@@ -33,7 +33,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 # Also install Python and OpenAI package for AI development
 # Install xdg-utils for browser helper support in containerized environment
 RUN apt-get update && \
-    apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils jq tmux \
+    apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils jq \
     ripgrep fd-find tree shellcheck unzip zip htop strace iproute2 less && \
     rm -rf /var/lib/apt/lists/* && \
     pip3 install --no-cache-dir --break-system-packages openai playwright && \
@@ -51,15 +51,16 @@ RUN chmod +x /usr/local/bin/browser-helper /usr/local/bin/update-copilot
 # Add our custom services to the user bundle (don't overwrite the base image's bundle)
 # This ensures both base image and custom services run during initialization
 RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-ui
 
 # No need to switch user - LinuxServer base handles this
 
 # Set environment variables
 ENV DOCKER_HOST="unix:///var/run/docker.sock"
 
-# Expose code-server and agentboard ports
-EXPOSE 8443 4040
+# Expose code-server and Claude Code UI ports
+EXPOSE 8443 3001
 
 # Volume for docker socket
 VOLUME /var/run/docker.sock

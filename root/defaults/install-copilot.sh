@@ -1,68 +1,30 @@
 #!/usr/bin/env bash
+
 # GitHub Copilot Extensions Installer for code-server
 # These extensions aren't available in Open VSX, so we install from VS Code Marketplace
-# Supports both fresh installs and updates to newer versions
-
-set -e
 
 # code-server binary path (LinuxServer.io base image location)
 CODE_SERVER_BIN="${CODE_SERVER_BIN:-/app/code-server/bin/code-server}"
 
 # Extract VS Code version from code-server
 get_vscode_version() {
-    # code-server --version outputs: "4.106.3 f128a7ac113916c9c29cf8d1361ab4b7f3bd9e75 with Code 1.106.3"
-    # We need the VS Code version (after "with Code "), not the code-server version
-    # Use grep to find the line with "with Code", then sed to extract just the version number
-    "$CODE_SERVER_BIN" --version 2>/dev/null | grep 'with Code' | sed 's/.*with Code //' | head -n1
+    "$CODE_SERVER_BIN" --version | head -n1
 }
 
-# Get installed version of an extension
-get_installed_version() {
-    local extension_id="$1"
-    local ext_dir="/config/.local/share/code-server/extensions"
+# Get user-data-dir from running code-server process
+get_user_data_dir() {
+    local process_info
+    if command -v ps >/dev/null 2>&1; then
+        process_info=$(ps aux 2>/dev/null | grep -v grep | grep "code-server" | head -n 1) ||
+        process_info=$(ps -ef 2>/dev/null | grep -v grep | grep "code-server" | head -n 1)
+    fi
 
-    # Extension directories are named like: github.copilot-1.234.0
-    local ext_lower
-    ext_lower=$(echo "$extension_id" | tr '[:upper:]' '[:lower:]')
-
-    # Find the extension directory and extract version
-    if [ -d "$ext_dir" ]; then
-        local found_dir
-        found_dir=$(find "$ext_dir" -maxdepth 1 -type d -iname "${ext_lower}-*" 2>/dev/null | head -n1)
-        if [ -n "$found_dir" ]; then
-            # Extract version from directory name (e.g., github.copilot-1.234.0 -> 1.234.0)
-            basename "$found_dir" | sed "s/^${ext_lower}-//"
-        fi
+    if [ -n "$process_info" ]; then
+        echo "$process_info" | grep -o -- '--user-data-dir=[^ ]*' | sed 's/--user-data-dir=//'
     fi
 }
 
-# Compare semantic versions: returns 0 if $1 > $2, 1 otherwise
-version_greater_than() {
-    local ver1="$1"
-    local ver2="$2"
-
-    # Split versions into parts
-    local IFS='.'
-    read -ra v1_parts <<< "$ver1"
-    read -ra v2_parts <<< "$ver2"
-
-    # Compare each part
-    for i in 0 1 2; do
-        local p1="${v1_parts[$i]:-0}"
-        local p2="${v2_parts[$i]:-0}"
-
-        if [ "$p1" -gt "$p2" ] 2>/dev/null; then
-            return 0
-        elif [ "$p1" -lt "$p2" ] 2>/dev/null; then
-            return 1
-        fi
-    done
-
-    # Versions are equal
-    return 1
-}
-
-# Find compatible extension version from VS Code Marketplace
+# Find compatible extension version
 find_compatible_version() {
     local extension_id="$1"
     local vscode_version="$2"
@@ -102,16 +64,16 @@ find_compatible_version() {
         .version' | head -n 1
 }
 
-# Install extension from VS Code Marketplace
+# Install extension
 install_extension() {
     local extension_id="$1"
     local version="$2"
-    local action="${3:-Installing}"  # "Installing" or "Updating"
+    local user_data_dir="$3"
     local extension_name
     extension_name=$(echo "$extension_id" | cut -d'.' -f2)
     local temp_dir="/tmp/code-extensions"
 
-    echo "$action $extension_id to v$version..."
+    echo "Installing $extension_id v$version..."
 
     mkdir -p "$temp_dir"
 
@@ -131,11 +93,16 @@ install_extension() {
         gzip -df "$temp_dir/$extension_name.vsix.gz"
     fi
 
-    # Install extension (--force overwrites existing version)
-    "$CODE_SERVER_BIN" --force --install-extension "$temp_dir/$extension_name.vsix"
+    # Install with user-data-dir if provided
+    if [ -n "$user_data_dir" ]; then
+        "$CODE_SERVER_BIN" --user-data-dir="$user_data_dir" --force --install-extension "$temp_dir/$extension_name.vsix"
+    else
+        "$CODE_SERVER_BIN" --force --install-extension "$temp_dir/$extension_name.vsix"
+    fi
 
     rm -f "$temp_dir/$extension_name.vsix"
-    echo "  ✓ $extension_id v$version installed successfully!"
+
+    echo "  ✓ $extension_id installed successfully!"
     return 0
 }
 
@@ -143,6 +110,7 @@ install_extension() {
 install_copilot_extensions() {
     echo "GitHub Copilot Extensions Installer"
     echo "===================================="
+    echo ""
 
     # Check for required dependencies
     for cmd in curl jq; do
@@ -154,53 +122,39 @@ install_copilot_extensions() {
 
     # Get VS Code version
     VSCODE_VERSION="$(get_vscode_version)"
+
     if [ -z "$VSCODE_VERSION" ]; then
         echo "Error: Could not extract VS Code version from code-server"
         return 1
     fi
-    echo "Detected VS Code engine version: $VSCODE_VERSION"
+
+    echo "Detected VS Code version: $VSCODE_VERSION"
+
+    # Check for user-data-dir in running code-server
+    USER_DATA_DIR="$(get_user_data_dir)"
+    if [ -n "$USER_DATA_DIR" ]; then
+        echo "Detected user-data-dir: $USER_DATA_DIR"
+    fi
     echo ""
 
     # Extensions to install
-    local extensions="GitHub.copilot GitHub.copilot-chat"
-    local failed=0
+    EXTENSIONS="GitHub.copilot GitHub.copilot-chat"
+    FAILED=0
 
-    for ext in $extensions; do
+    for ext in $EXTENSIONS; do
         echo "Processing $ext..."
 
-        # Get latest compatible version
-        local latest_version
-        latest_version="$(find_compatible_version "$ext" "$VSCODE_VERSION")"
+        # Find compatible version
+        version="$(find_compatible_version "$ext" "$VSCODE_VERSION")"
 
-        if [ -z "$latest_version" ]; then
+        if [ -z "$version" ]; then
             echo "  ✗ No compatible version found for $ext"
-            failed=$((failed + 1))
-            echo ""
-            continue
-        fi
-
-        # Check installed version
-        local installed_version
-        installed_version="$(get_installed_version "$ext")"
-
-        if [ -z "$installed_version" ]; then
-            # Not installed - fresh install
-            echo "  Latest compatible version: $latest_version"
-            if ! install_extension "$ext" "$latest_version" "Installing"; then
-                failed=$((failed + 1))
-            fi
-        elif [ "$installed_version" = "$latest_version" ]; then
-            # Already at latest version
-            echo "  ✓ Already at latest version ($installed_version)"
-        elif version_greater_than "$latest_version" "$installed_version"; then
-            # Update available
-            echo "  Update available: $installed_version → $latest_version"
-            if ! install_extension "$ext" "$latest_version" "Updating"; then
-                failed=$((failed + 1))
-            fi
+            FAILED="$((FAILED + 1))"
         else
-            # Installed version is newer or equal (edge case)
-            echo "  ✓ Current version ($installed_version) is up to date"
+            echo "  Found compatible version: $version"
+            if ! install_extension "$ext" "$version" "$USER_DATA_DIR"; then
+                FAILED="$((FAILED + 1))"
+            fi
         fi
         echo ""
     done
@@ -209,11 +163,11 @@ install_copilot_extensions() {
     rm -rf /tmp/code-extensions
 
     echo "===================================="
-    if [ $failed -eq 0 ]; then
-        echo "✓ GitHub Copilot extensions are up to date!"
+    if [ $FAILED -eq 0 ]; then
+        echo "✓ All extensions installed successfully!"
         return 0
     else
-        echo "⚠ Completed with $failed error(s)"
+        echo "⚠ Completed with $FAILED error(s)"
         return 1
     fi
 }

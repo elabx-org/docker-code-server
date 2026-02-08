@@ -51,8 +51,7 @@ Base image services (init-adduser, init-config, init-mods-end)
 **2. svc-claude-code-startup** — `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run`
 - Runs as **user `abc`**, executes `/defaults/startup.sh`
 - Configures npm prefix to `/config/.npm-global`
-- Installs AI tools (Claude Code, Codex, Gemini CLI, Happy Coder) via npm if not present
-- Creates Claude auto-update config at `/config/.claude/config.json`
+- Installs AI tools (Claude Code via native installer, Codex, Gemini CLI, Happy Coder via npm) if not present
 - Installs VS Code extensions and GitHub Copilot
 - Sets `BROWSER=/usr/local/bin/browser-helper` for OAuth flows
 

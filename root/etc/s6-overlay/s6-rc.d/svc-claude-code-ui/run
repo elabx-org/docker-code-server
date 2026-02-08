@@ -1,0 +1,6 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# Run Claude Code UI as a long-running service (as abc user)
+# Depends on svc-claude-code-startup which installs the npm package
+exec s6-setuidgid abc /bin/bash -c 'export PATH="/config/.npm-global/bin:$HOME/.local/bin:$PATH" && exec claude-code-ui --port 3001'

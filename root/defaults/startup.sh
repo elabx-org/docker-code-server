@@ -58,16 +58,16 @@ if [ ! -x /config/.npm-global/bin/codex ]; then
     fi
 fi
 
-# Install Agentboard if not already present
-if [ ! -x /config/.npm-global/bin/agentboard ]; then
-    echo "Installing Agentboard to /config/.npm-global..."
-    npm install -g @gbasin/agentboard 2>&1 | tail -20
+# Install Claude Code UI (web interface for mobile/remote access) if not already present
+if [ ! -x /config/.npm-global/bin/claude-code-ui ]; then
+    echo "Installing Claude Code UI to /config/.npm-global..."
+    npm install -g @siteboon/claude-code-ui 2>&1 | tail -20
 
     # Verify installation succeeded
-    if [ -x /config/.npm-global/bin/agentboard ]; then
-        echo "✓ Agentboard installed successfully"
+    if [ -x /config/.npm-global/bin/claude-code-ui ]; then
+        echo "✓ Claude Code UI installed successfully"
     else
-        echo "✗ Agentboard installation failed - check logs above"
+        echo "✗ Claude Code UI installation failed - check logs above"
     fi
 fi
 
@@ -103,8 +103,6 @@ export BROWSER="/usr/local/bin/browser-helper"
 # No config.json needed - native installs update automatically in the background
 
 # Clean up old tmux terminal profile from settings.json (from previous image versions)
-# Previous builds wrote tmux as code-server's default terminal profile, which breaks
-# if the settings persist on the volume. We now use .bashrc auto-start instead.
 MACHINE_SETTINGS="/config/data/Machine/settings.json"
 if [ -f "$MACHINE_SETTINGS" ] && grep -q '"terminal.integrated.defaultProfile.linux".*tmux' "$MACHINE_SETTINGS" 2>/dev/null; then
     echo "Removing old tmux terminal profile from code-server settings..."
@@ -112,19 +110,12 @@ if [ -f "$MACHINE_SETTINGS" ] && grep -q '"terminal.integrated.defaultProfile.li
         "$MACHINE_SETTINGS" > "${MACHINE_SETTINGS}.tmp" && mv "${MACHINE_SETTINGS}.tmp" "$MACHINE_SETTINGS"
 fi
 
-# Auto-start tmux in interactive shells (added to .bashrc)
-# Code-server launches bash normally, bash sources .bashrc, exec replaces bash with tmux
-if command -v tmux >/dev/null 2>&1; then
-    if [ ! -f ~/.bashrc ] || ! grep -q 'exec tmux' ~/.bashrc; then
-        cat >> ~/.bashrc <<'TMUX'
-
-# Auto-start tmux for interactive terminal sessions
-if command -v tmux &>/dev/null && [ -z "$TMUX" ] && [ -n "$TERM_PROGRAM" ]; then
-    exec tmux new-session -A -s main
-fi
-TMUX
-        echo "Configured tmux auto-start in .bashrc"
-    fi
+# Clean up old tmux auto-start from .bashrc (from previous image versions)
+if [ -f ~/.bashrc ] && grep -q 'exec tmux' ~/.bashrc; then
+    echo "Removing old tmux auto-start from .bashrc..."
+    sed -i '/# Auto-start tmux for interactive terminal sessions/,/^fi$/d' ~/.bashrc
+    # Also remove any leftover blank lines from the removal
+    sed -i '/^$/N;/^\n$/d' ~/.bashrc
 fi
 
 # Check if claude-code is available
@@ -161,10 +152,10 @@ else
     echo "Warning: Google Gemini CLI not found"
 fi
 
-# Check if agentboard is available
-if command -v agentboard >/dev/null 2>&1; then
-    echo "Agentboard is installed and ready"
-    echo "Usage: Run 'agentboard' to monitor AI agent sessions (port 4040)"
+# Check if claude-code-ui is available
+if command -v claude-code-ui >/dev/null 2>&1; then
+    echo "Claude Code UI is installed for mobile/remote access"
+    echo "Usage: Run 'claude-code-ui' to start web UI (port 3001)"
 fi
 
 # Check if OpenAI Python package is available

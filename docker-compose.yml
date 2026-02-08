@@ -25,7 +25,7 @@ services:
       # - ~/.gitconfig:/config/.gitconfig:ro # For git config
     ports:
       - "8443:8443"
-      - "4040:4040"   # Agentboard - AI agent session monitoring
+      - "3001:3001"   # Claude Code UI - mobile/remote web interface
     restart: unless-stopped
     # Optional: Add to enable GPU support
     # deploy:
