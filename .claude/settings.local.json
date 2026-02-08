@@ -34,7 +34,9 @@
       "Bash(xargs bash root/usr/local/bin/browser-helper)",
       "Bash(docker build:*)",
       "WebSearch",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(git status:*)"
     ],
     "deny": [],
     "ask": []

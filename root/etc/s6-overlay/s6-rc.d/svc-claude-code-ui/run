@@ -3,15 +3,12 @@
 
 # Run Claude Code UI as a long-running service (as abc user)
 # Depends on svc-claude-code-startup which installs the npm package
+# Directory /config/.claude-code-ui is created by init-claude-code-config (as root, with correct ownership)
 
-# Set up environment for the abc user
 export HOME="/config"
 export PATH="/config/.npm-global/bin:/config/.local/bin:$PATH"
 export CLAUDE_CLI_PATH="/config/.local/bin/claude"
 export DATABASE_PATH="/config/.claude-code-ui/auth.db"
 export PORT=3001
-
-# Ensure database directory exists
-mkdir -p /config/.claude-code-ui
 
 exec s6-setuidgid abc claude-code-ui
