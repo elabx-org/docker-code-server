@@ -46,7 +46,7 @@ RUN apt-get update && \
 COPY --chown=root:root root/ /
 
 # Make helper scripts executable
-RUN chmod +x /usr/local/bin/browser-helper /usr/local/bin/update-copilot /usr/local/bin/tmux-shell
+RUN chmod +x /usr/local/bin/browser-helper /usr/local/bin/update-copilot
 
 # Add our custom services to the user bundle (don't overwrite the base image's bundle)
 # This ensures both base image and custom services run during initialization

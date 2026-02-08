@@ -1,7 +1,0 @@
-#!/bin/bash
-# Wrapper for code-server terminal that starts tmux
-# Falls back to bash if tmux is unavailable or fails
-if [ -z "$TMUX" ] && command -v tmux >/dev/null 2>&1; then
-    tmux new-session -A -s main && exit
-fi
-exec bash --login

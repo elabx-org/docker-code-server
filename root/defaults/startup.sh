@@ -102,33 +102,18 @@ export BROWSER="/usr/local/bin/browser-helper"
 # Note: Claude Code native installer manages its own auto-updates
 # No config.json needed - native installs update automatically in the background
 
-# Configure tmux as default terminal in code-server (only if tmux is installed)
+# Auto-start tmux in interactive shells (added to .bashrc)
+# Code-server launches bash normally, bash sources .bashrc, exec replaces bash with tmux
 if command -v tmux >/dev/null 2>&1; then
-    MACHINE_SETTINGS="/config/data/Machine/settings.json"
-    mkdir -p "$(dirname "$MACHINE_SETTINGS")"
-    if [ ! -f "$MACHINE_SETTINGS" ]; then
-        cat > "$MACHINE_SETTINGS" <<'SETTINGS'
-{
-  "terminal.integrated.defaultProfile.linux": "tmux",
-  "terminal.integrated.profiles.linux": {
-    "tmux": {
-      "path": "/usr/local/bin/tmux-shell"
-    }
-  }
-}
-SETTINGS
-        echo "Configured tmux as default terminal profile"
-    elif ! grep -q '"terminal.integrated.defaultProfile.linux"' "$MACHINE_SETTINGS"; then
-        # Merge tmux settings into existing settings using jq
-        jq '. + {
-          "terminal.integrated.defaultProfile.linux": "tmux",
-          "terminal.integrated.profiles.linux": (."terminal.integrated.profiles.linux" // {} | . + {
-            "tmux": {
-              "path": "/usr/local/bin/tmux-shell"
-            }
-          })
-        }' "$MACHINE_SETTINGS" > "${MACHINE_SETTINGS}.tmp" && mv "${MACHINE_SETTINGS}.tmp" "$MACHINE_SETTINGS"
-        echo "Added tmux as default terminal profile to existing settings"
+    if [ ! -f ~/.bashrc ] || ! grep -q 'exec tmux' ~/.bashrc; then
+        cat >> ~/.bashrc <<'TMUX'
+
+# Auto-start tmux for interactive terminal sessions
+if command -v tmux &>/dev/null && [ -z "$TMUX" ] && [ -n "$TERM_PROGRAM" ]; then
+    exec tmux new-session -A -s main
+fi
+TMUX
+        echo "Configured tmux auto-start in .bashrc"
     fi
 fi
 
