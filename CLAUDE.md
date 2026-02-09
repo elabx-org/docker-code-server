@@ -170,4 +170,5 @@ npm packages: `@saadnvd1/agent-os`, `@openai/codex`, `@google/gemini-cli`
 - **Claude Code auth fails**: Run `claude setup-token`. Check `/config/.claude/` ownership.
 - **Docker permission denied**: Verify socket is mounted, check `groups` shows `docker`.
 - **Agent-OS not accessible**: Check service is running: `docker exec code-server-claude agent-os status`. Port 3011 must be exposed in docker-compose.yml.
-- **Agent-OS terminal sessions failing**: This is a known limitation when running as an s6 service. Terminal connections require PTY allocation which doesn't work properly in service mode. Workaround: Stop the service and run Agent-OS manually from a terminal inside code-server for full functionality.
+- **Agent-OS terminal sessions failing**: Terminal sessions now work after installing tmux and patching the shell/PATH configuration.
+- **Agent-OS delete buttons not working**: The delete buttons in the UI don't work (frontend bug). Workaround: Use the API directly via curl, e.g., `curl -X DELETE http://localhost:3011/api/projects/PROJECT_ID` or `curl -X DELETE http://localhost:3011/api/sessions/SESSION_ID`
