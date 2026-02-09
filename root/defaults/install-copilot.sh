@@ -8,7 +8,9 @@ CODE_SERVER_BIN="${CODE_SERVER_BIN:-/app/code-server/bin/code-server}"
 
 # Extract VS Code version from code-server
 get_vscode_version() {
-    "$CODE_SERVER_BIN" --version | head -n1
+    # code-server outputs: "4.108.2 <hash> with Code 1.108.2"
+    # We need the VS Code version (after "with Code ")
+    "$CODE_SERVER_BIN" --version | head -n1 | sed -n 's/.*with Code \([0-9.]*\).*/\1/p'
 }
 
 # Get user-data-dir from running code-server process
