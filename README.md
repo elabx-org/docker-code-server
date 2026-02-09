@@ -9,7 +9,7 @@ A Docker image that enhances the [linuxserver/code-server](https://github.com/li
 - **Claude Code UI**: Web-based mobile/remote interface for Claude Code sessions (port 3001)
 - **OpenAI Codex**: OpenAI's AI coding assistant (works with ChatGPT Plus/Pro/Team)
 - **Google Gemini CLI**: Google's AI coding assistant with 1M token context window
-- **Happy Coder**: Remote mobile access to Claude Code sessions with push notifications
+- **Agent-OS**: Mobile-first web UI for managing multiple AI coding sessions (port 3011)
 - **GitHub Copilot**: Pre-installed GitHub Copilot and Copilot Chat extensions
 - **Development Tools**:
   - Docker CLI
@@ -48,6 +48,7 @@ docker-compose up -d
 
 4. Access code-server at `http://localhost:8443`
 5. Access Claude Code UI at `http://localhost:3001`
+6. Access Agent-OS at `http://localhost:3011`
 
 ### Using Docker Run
 
@@ -59,6 +60,7 @@ docker run -d \
   -e TZ=Etc/UTC \
   -p 8443:8443 \
   -p 3001:3001 \
+  -p 3011:3011 \
   -v /path/to/config:/config \
   -v /path/to/workspace:/config/workspace \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
@@ -95,6 +97,7 @@ id $USER
 |------|---------|
 | 8443 | code-server (VS Code in browser) |
 | 3001 | Claude Code UI (mobile/remote web interface) |
+| 3011 | Agent-OS (mobile-first AI session manager) |
 
 ## Volume Mounts
 
@@ -228,6 +231,7 @@ The GitHub workflow automatically:
 - **Permission issues**: Adjust `PUID`/`PGID` to match your user
 - **Extensions not installing**: Check IDs against [Open VSX](https://open-vsx.org/)
 - **OAuth not working**: Set `CODE_SERVER_URL` in your `.env` file
+- **Agent-OS EBADF errors**: These "ioctl(2) failed, EBADF" errors are expected when running as a service and can be safely ignored - the web UI works normally
 - **Check logs**: `docker logs code-server-claude`
 
 ## License
