@@ -34,9 +34,13 @@ fi
 
 # Install or update Agent-OS to /config/.npm-global
 # Agent-OS provides a mobile-first web UI for managing AI coding sessions
+# Uses elabx-org fork from GitHub Packages registry with container fixes baked in
+AGENT_OS_PKG="@elabx-org/agent-os"
+AGENT_OS_REGISTRY="https://npm.pkg.github.com"
+
 if [ ! -x /config/.npm-global/bin/agent-os ]; then
     echo "Installing Agent-OS to /config/.npm-global..."
-    npm install -g @saadnvd1/agent-os 2>&1 | tail -20
+    npm install -g "$AGENT_OS_PKG" --registry="$AGENT_OS_REGISTRY" 2>&1 | tail -20
 
     # Verify installation succeeded
     if [ -x /config/.npm-global/bin/agent-os ]; then
@@ -49,20 +53,15 @@ if [ ! -x /config/.npm-global/bin/agent-os ]; then
 else
     # Check for updates (runs quickly, non-blocking)
     echo "Checking for Agent-OS updates..."
-    CURRENT_VERSION=$(npm list -g @saadnvd1/agent-os --json 2>/dev/null | jq -r '.dependencies."@saadnvd1/agent-os".version' 2>/dev/null)
-    LATEST_VERSION=$(npm view @saadnvd1/agent-os version 2>/dev/null)
+    CURRENT_VERSION=$(npm list -g "$AGENT_OS_PKG" --json 2>/dev/null | jq -r ".dependencies.\"$AGENT_OS_PKG\".version" 2>/dev/null)
+    LATEST_VERSION=$(npm view "$AGENT_OS_PKG" version --registry="$AGENT_OS_REGISTRY" 2>/dev/null)
 
     if [ -n "$CURRENT_VERSION" ] && [ -n "$LATEST_VERSION" ] && [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
         echo "Updating Agent-OS from $CURRENT_VERSION to $LATEST_VERSION..."
-        npm update -g @saadnvd1/agent-os 2>&1 | tail -20
+        npm update -g "$AGENT_OS_PKG" --registry="$AGENT_OS_REGISTRY" 2>&1 | tail -20
         echo "✓ Agent-OS updated to $LATEST_VERSION"
     else
         echo "✓ Agent-OS is up to date (v$CURRENT_VERSION)"
-    fi
-
-    # Patch Agent-OS to use bash instead of zsh (container doesn't have zsh)
-    if [ -f /defaults/patch-agent-os.sh ]; then
-        source /defaults/patch-agent-os.sh
     fi
 fi
 

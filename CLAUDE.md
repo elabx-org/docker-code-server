@@ -66,8 +66,8 @@ Base image services (init-adduser, init-config, init-mods-end)
 **4. svc-agent-os** — `root/etc/s6-overlay/s6-rc.d/svc-agent-os/run`
 - Runs as **user `abc`**, longrun service
 - Serves Agent-OS mobile-first web UI on port 3011
+- Uses `@elabx-org/agent-os` fork from GitHub Packages (container fixes baked in)
 - Auto-updates checked on container startup
-- Patched at startup for container compatibility (bash shell, expanded PATH, user abc, login shells, PTY grace period)
 
 ### Critical: Service Bundle Integration
 
@@ -97,7 +97,7 @@ Agent-OS, Codex, and Gemini CLI install to `/config/.npm-global` (persistent vol
 - Agent-OS includes auto-update checking on each container startup
 - PATH includes both `~/.local/bin` and `/config/.npm-global/bin` via `~/.bashrc`
 
-npm packages: `@saadnvd1/agent-os`, `@openai/codex`, `@google/gemini-cli`
+npm packages: `@elabx-org/agent-os` (GitHub Packages), `@openai/codex`, `@google/gemini-cli`
 
 ### Browser Helper (OAuth in Containers)
 
@@ -169,6 +169,5 @@ npm packages: `@saadnvd1/agent-os`, `@openai/codex`, `@google/gemini-cli`
 - **Claude Code auth fails**: Run `claude setup-token`. Check `/config/.claude/` ownership.
 - **Docker permission denied**: Verify socket is mounted, check `groups` shows `docker`.
 - **Agent-OS not accessible**: Check service is running: `docker exec code-server-claude agent-os status`. Port 3011 must be exposed in docker-compose.yml.
-- **Agent-OS terminal sessions failing**: Terminal sessions now work after installing tmux and patching the shell/PATH configuration. PTY processes have a 5-minute grace period on WebSocket disconnect to prevent Claude Code sessions from dying during brief network interruptions.
-- **Agent-OS menu actions not working**: If delete/rename buttons stop working after an Agent-OS update, re-run `patch-agent-os.sh`. The patch fixes Radix UI menu items to use `onSelect` instead of `onClick` (which fails on mobile/touch). API fallback: `curl -X DELETE http://localhost:3011/api/projects/PROJECT_ID`
-- **Agent-OS move session to project not working**: The upstream session PATCH API is missing `projectId` handling. The `patch-agent-os.sh` script adds this. After patching, rebuild Next.js and restart Agent-OS.
+- **Agent-OS terminal sessions failing**: The `@elabx-org/agent-os` fork includes container compatibility fixes (bash shell, expanded PATH, login shells). PTY processes have a 5-minute grace period on WebSocket disconnect.
+- **Agent-OS menu actions not working**: The fork includes Radix UI `onSelect` fix. If using upstream, menu items need `onClick` → `onSelect`. API fallback: `curl -X DELETE http://localhost:3011/api/projects/PROJECT_ID`
