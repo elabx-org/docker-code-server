@@ -24,9 +24,10 @@ if [ ! -d /config/.agent-os/repo ]; then
     sleep 10
 fi
 
-# Start Agent-OS server in foreground mode (required for s6 longrun services)
-# Note: EBADF errors are expected when running without a controlling terminal
-# These are non-fatal and don't affect the web UI functionality
+# Start Agent-OS server in foreground mode
 echo "Starting Agent-OS web server on port 3011..."
-echo "Note: Terminal-related errors (EBADF) are expected and can be safely ignored"
+
+# Note: Terminal sessions may have issues when running as a service
+# Agent-OS works best when run interactively from a terminal
+# The web UI will work, but terminal connections may fail with EBADF errors
 exec s6-setuidgid abc agent-os start-foreground

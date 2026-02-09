@@ -231,7 +231,7 @@ The GitHub workflow automatically:
 - **Permission issues**: Adjust `PUID`/`PGID` to match your user
 - **Extensions not installing**: Check IDs against [Open VSX](https://open-vsx.org/)
 - **OAuth not working**: Set `CODE_SERVER_URL` in your `.env` file
-- **Agent-OS EBADF errors**: These "ioctl(2) failed, EBADF" errors are expected when running as a service and can be safely ignored - the web UI works normally
+- **Agent-OS terminal sessions not working**: Terminal connections fail when Agent-OS runs as a service due to PTY allocation issues. **Workaround**: Run Agent-OS manually from a terminal inside code-server instead of relying on the service
 - **Check logs**: `docker logs code-server-claude`
 
 ## License

@@ -67,6 +67,8 @@ Base image services (init-adduser, init-config, init-mods-end)
 - Runs as **user `abc`**, longrun service
 - Serves Agent-OS mobile-first web UI on port 3011
 - Auto-updates checked on container startup
+- **Known limitation**: Terminal sessions don't work properly when run as a service (EBADF errors)
+- For full functionality, run Agent-OS manually from a terminal inside code-server
 
 ### Critical: Service Bundle Integration
 
@@ -168,4 +170,4 @@ npm packages: `@saadnvd1/agent-os`, `@openai/codex`, `@google/gemini-cli`
 - **Claude Code auth fails**: Run `claude setup-token`. Check `/config/.claude/` ownership.
 - **Docker permission denied**: Verify socket is mounted, check `groups` shows `docker`.
 - **Agent-OS not accessible**: Check service is running: `docker exec code-server-claude agent-os status`. Port 3011 must be exposed in docker-compose.yml.
-- **Agent-OS sessions not working**: Ensure tmux is installed (auto-installed on first run). Check AI CLI tools are installed (Claude, Codex, etc.).
+- **Agent-OS terminal sessions failing**: This is a known limitation when running as an s6 service. Terminal connections require PTY allocation which doesn't work properly in service mode. Workaround: Stop the service and run Agent-OS manually from a terminal inside code-server for full functionality.
