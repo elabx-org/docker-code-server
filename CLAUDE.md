@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Docker-based development environment that combines LinuxServer's code-server image with AI coding assistants (Claude Code, OpenAI Codex, Google Gemini CLI, and Happy Coder). This is a **Dockerfile project** - the primary deliverable is a container image published to `ghcr.io`.
+A Docker-based development environment that combines LinuxServer's code-server image with AI coding assistants (Claude Code, OpenAI Codex, Google Gemini CLI) and Agent-OS (mobile-first web UI for managing AI coding sessions). This is a **Dockerfile project** - the primary deliverable is a container image published to `ghcr.io`.
 
 **Base image**: `ghcr.io/linuxserver/code-server:latest`
 **Runtime**: Node.js 20.x LTS (NodeSource), Python 3.x, Docker CLI, GitHub CLI
@@ -32,7 +32,7 @@ There are no unit tests, linters, or compilation steps. Testing means building t
 
 ## Architecture
 
-### Init System: s6-overlay (Two Custom Services)
+### Init System: s6-overlay (Custom Services)
 
 The container uses LinuxServer.io's s6-overlay init system. The initialization chain is:
 
@@ -40,6 +40,8 @@ The container uses LinuxServer.io's s6-overlay init system. The initialization c
 Base image services (init-adduser, init-config, init-mods-end)
   └─> init-claude-code-config  (root, oneshot)
         └─> svc-claude-code-startup  (user abc, oneshot)
+        └─> svc-claude-code-ui  (user abc, longrun, port 3001)
+        └─> svc-agent-os  (user abc, longrun, port 3011)
 ```
 
 **1. init-claude-code-config** — `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run`
@@ -51,16 +53,29 @@ Base image services (init-adduser, init-config, init-mods-end)
 **2. svc-claude-code-startup** — `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run`
 - Runs as **user `abc`**, executes `/defaults/startup.sh`
 - Configures npm prefix to `/config/.npm-global`
-- Installs AI tools (Claude Code via native installer, Codex, Gemini CLI, Happy Coder via npm) if not present
+- Installs AI tools (Claude Code via native installer, Codex, Gemini CLI via npm) if not present
+- Installs or updates Agent-OS with auto-update checking
 - Installs VS Code extensions and GitHub Copilot
 - Sets `BROWSER=/usr/local/bin/browser-helper` for OAuth flows
 
+**3. svc-claude-code-ui** — `root/etc/s6-overlay/s6-rc.d/svc-claude-code-ui/run`
+- Runs as **user `abc`**, longrun service
+- Serves Claude Code UI web interface on port 3001
+- Built from source at image build time
+
+**4. svc-agent-os** — `root/etc/s6-overlay/s6-rc.d/svc-agent-os/run`
+- Runs as **user `abc`**, longrun service
+- Serves Agent-OS mobile-first web UI on port 3011
+- Auto-updates checked on container startup
+
 ### Critical: Service Bundle Integration
 
-In `Dockerfile:50-51`, services are registered using `touch`:
+In `Dockerfile:61-64`, services are registered using `touch`:
 ```dockerfile
 RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-ui && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-agent-os
 ```
 **Never copy a complete `user/contents.d/` directory** — this would overwrite base image services and break PUID/PGID handling. Always use `touch` to add services alongside existing ones.
 
@@ -74,13 +89,14 @@ Claude Code uses the official native installer (`curl -fsSL https://claude.ai/in
 
 ### npm Global Install (Other Tools)
 
-Happy Coder, Codex, and Gemini CLI install to `/config/.npm-global` (persistent volume, owned by `abc` user). This means:
+Agent-OS, Codex, and Gemini CLI install to `/config/.npm-global` (persistent volume, owned by `abc` user). This means:
 - Tools auto-update without root or image rebuilds
 - Updates persist across container restarts
 - The startup script only installs if the binary doesn't exist (`[ ! -x /config/.npm-global/bin/<tool> ]`)
+- Agent-OS includes auto-update checking on each container startup
 - PATH includes both `~/.local/bin` and `/config/.npm-global/bin` via `~/.bashrc`
 
-npm packages: `happy-coder`, `@openai/codex`, `@google/gemini-cli`
+npm packages: `@saadnvd1/agent-os`, `@openai/codex`, `@google/gemini-cli`
 
 ### Browser Helper (OAuth in Containers)
 
@@ -94,13 +110,15 @@ npm packages: `happy-coder`, `@openai/codex`, `@google/gemini-cli`
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Image build definition (68 lines) |
+| `Dockerfile` | Image build definition (74 lines) |
 | `docker-compose.yml` | Container orchestration with env vars |
 | `root/defaults/startup.sh` | Main user-level init script (runs as `abc`) |
 | `root/defaults/install-copilot.sh` | Copilot extension installer/updater |
 | `root/usr/local/bin/browser-helper` | OAuth URL converter for containerized env |
 | `root/etc/s6-overlay/s6-rc.d/init-claude-code-config/run` | Root init (dirs, permissions, docker group) |
 | `root/etc/s6-overlay/s6-rc.d/svc-claude-code-startup/run` | User init (calls startup.sh) |
+| `root/etc/s6-overlay/s6-rc.d/svc-claude-code-ui/run` | Claude Code UI service (port 3001) |
+| `root/etc/s6-overlay/s6-rc.d/svc-agent-os/run` | Agent-OS service (port 3011) |
 | `.github/workflows/build.yml` | CI/CD: build + push to GHCR |
 | `.claude/settings.local.json` | Pre-approved Claude Code permissions |
 
@@ -149,3 +167,5 @@ npm packages: `happy-coder`, `@openai/codex`, `@google/gemini-cli`
 - **OAuth not working**: Set `CODE_SERVER_URL` in `.env`. Fallback: use token auth (`claude setup-token`) or device flow.
 - **Claude Code auth fails**: Run `claude setup-token`. Check `/config/.claude/` ownership.
 - **Docker permission denied**: Verify socket is mounted, check `groups` shows `docker`.
+- **Agent-OS not accessible**: Check service is running: `docker exec code-server-claude agent-os status`. Port 3011 must be exposed in docker-compose.yml.
+- **Agent-OS sessions not working**: Ensure tmux is installed (auto-installed on first run). Check AI CLI tools are installed (Claude, Codex, etc.).

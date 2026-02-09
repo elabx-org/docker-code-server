@@ -32,16 +32,32 @@ if [ ! -x "$HOME/.local/bin/claude" ]; then
     fi
 fi
 
-# Install Happy Coder to /config/.npm-global if not already present
-if [ ! -x /config/.npm-global/bin/happy ]; then
-    echo "Installing Happy Coder to /config/.npm-global..."
-    npm install -g happy-coder 2>&1 | tail -20
+# Install or update Agent-OS to /config/.npm-global
+# Agent-OS provides a mobile-first web UI for managing AI coding sessions
+if [ ! -x /config/.npm-global/bin/agent-os ]; then
+    echo "Installing Agent-OS to /config/.npm-global..."
+    npm install -g @saadnvd1/agent-os 2>&1 | tail -20
 
     # Verify installation succeeded
-    if [ -x /config/.npm-global/bin/happy ]; then
-        echo "✓ Happy Coder installed successfully"
+    if [ -x /config/.npm-global/bin/agent-os ]; then
+        echo "✓ Agent-OS installed successfully"
+        # Run initial setup
+        agent-os install 2>&1 | tail -10
     else
-        echo "✗ Happy Coder installation failed - check logs above"
+        echo "✗ Agent-OS installation failed - check logs above"
+    fi
+else
+    # Check for updates (runs quickly, non-blocking)
+    echo "Checking for Agent-OS updates..."
+    CURRENT_VERSION=$(npm list -g @saadnvd1/agent-os --json 2>/dev/null | jq -r '.dependencies."@saadnvd1/agent-os".version' 2>/dev/null)
+    LATEST_VERSION=$(npm view @saadnvd1/agent-os version 2>/dev/null)
+
+    if [ -n "$CURRENT_VERSION" ] && [ -n "$LATEST_VERSION" ] && [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+        echo "Updating Agent-OS from $CURRENT_VERSION to $LATEST_VERSION..."
+        npm update -g @saadnvd1/agent-os 2>&1 | tail -20
+        echo "✓ Agent-OS updated to $LATEST_VERSION"
+    else
+        echo "✓ Agent-OS is up to date (v$CURRENT_VERSION)"
     fi
 fi
 
@@ -126,10 +142,12 @@ else
     echo "Warning: OpenAI Codex CLI not found"
 fi
 
-# Check if happy-coder is available
-if command -v happy >/dev/null 2>&1; then
-    echo "Happy Coder is installed for remote mobile access"
-    echo "Usage: Run 'happy' instead of 'claude' to enable remote monitoring"
+# Check if Agent-OS is available
+if command -v agent-os >/dev/null 2>&1; then
+    echo "Agent-OS is installed - Mobile-first web UI for AI coding sessions"
+    echo "Access the web interface at: http://localhost:3011"
+    echo "Usage: Run 'agent-os start' to launch the web server"
+    echo "For remote access, use Tailscale or port forwarding"
 fi
 
 # Check if gemini is available

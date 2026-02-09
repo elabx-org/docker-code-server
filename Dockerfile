@@ -28,7 +28,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 
 # Install build dependencies for npm packages with native modules
 # Also install jq for GitHub Copilot extension installer
-# Claude Code and Happy Coder will be installed by the startup script
+# Claude Code and Agent-OS will be installed by the startup script
 # to /config/.npm-global (user-writable, allows auto-updates)
 # Also install Python and OpenAI package for AI development
 # Install xdg-utils for browser helper support in containerized environment
@@ -60,15 +60,16 @@ RUN chmod +x /usr/local/bin/browser-helper /usr/local/bin/update-copilot
 # This ensures both base image and custom services run during initialization
 RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-claude-code-config && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-startup && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-ui
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-claude-code-ui && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-agent-os
 
 # No need to switch user - LinuxServer base handles this
 
 # Set environment variables
 ENV DOCKER_HOST="unix:///var/run/docker.sock"
 
-# Expose code-server and Claude Code UI ports
-EXPOSE 8443 3001
+# Expose code-server, Claude Code UI, and Agent-OS ports
+EXPOSE 8443 3001 3011
 
 # Volume for docker socket
 VOLUME /var/run/docker.sock

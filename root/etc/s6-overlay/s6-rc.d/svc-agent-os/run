@@ -1,0 +1,27 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# Run Agent-OS as a longrun service on port 3011
+# This provides a mobile-first web UI for managing AI coding sessions
+
+cd /config || exit 1
+
+# Export PATH to include npm global binaries
+export PATH="/config/.npm-global/bin:$PATH"
+export HOME="/config"
+
+# Wait for Agent-OS to be installed (startup script runs first)
+until [ -x /config/.npm-global/bin/agent-os ]; do
+    echo "Waiting for Agent-OS to be installed..."
+    sleep 5
+done
+
+# Additional wait for the initial setup to complete
+if [ ! -d /config/.agent-os/repo ]; then
+    echo "Waiting for Agent-OS initial setup to complete..."
+    sleep 10
+fi
+
+# Start Agent-OS server
+echo "Starting Agent-OS web server on port 3011..."
+exec s6-setuidgid abc agent-os start
