@@ -13,9 +13,17 @@ if [ -f "$AGENT_OS_SERVER" ]; then
     # Replace the minimal PATH with one that includes all standard locations
     sed -i 's#PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin"#PATH: process.env.PATH || "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/config/.npm-global/bin:/config/.local/bin"#g' "$AGENT_OS_SERVER"
 
+    # 3. Set proper default HOME and USER for container environment
+    # Default to /config (abc user's home) instead of root
+    sed -i 's#HOME: process.env.HOME || "/"#HOME: process.env.HOME || "/config"#g' "$AGENT_OS_SERVER"
+    sed -i 's#USER: process.env.USER || ""#USER: process.env.USER || "abc"#g' "$AGENT_OS_SERVER"
+    sed -i 's#cwd: process.env.HOME || "/"#cwd: process.env.HOME || "/config"#g' "$AGENT_OS_SERVER"
+
     echo "✓ Agent-OS patched for container compatibility"
     echo "  - Shell set to /bin/bash"
     echo "  - PATH expanded to include git and other tools"
+    echo "  - User set to abc (not root) for security"
+    echo "  - Home directory set to /config"
 else
     echo "Agent-OS server.ts not found, skipping patch"
 fi

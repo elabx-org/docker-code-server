@@ -9,6 +9,7 @@ cd /config || exit 1
 # Export PATH to include npm global binaries
 export PATH="/config/.npm-global/bin:$PATH"
 export HOME="/config"
+export USER="abc"
 export AGENT_OS_HOME="/config/.agent-os"
 export AGENT_OS_PORT="3011"
 # Set shell to bash (container doesn't have zsh)
