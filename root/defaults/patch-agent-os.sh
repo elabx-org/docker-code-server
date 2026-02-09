@@ -19,11 +19,17 @@ if [ -f "$AGENT_OS_SERVER" ]; then
     sed -i 's#USER: process.env.USER || ""#USER: process.env.USER || "abc"#g' "$AGENT_OS_SERVER"
     sed -i 's#cwd: process.env.HOME || "/"#cwd: process.env.HOME || "/config"#g' "$AGENT_OS_SERVER"
 
+    # 4. Make terminals spawn login shells to load .bashrc and get full environment
+    # This ensures Claude Code and other tools use their global configs
+    # Change spawn(shell, []) to spawn(shell, ["-l"])
+    sed -i 's#ptyProcess = pty.spawn(shell, \[\], {#ptyProcess = pty.spawn(shell, ["-l"], {#g' "$AGENT_OS_SERVER"
+
     echo "✓ Agent-OS patched for container compatibility"
     echo "  - Shell set to /bin/bash"
     echo "  - PATH expanded to include git and other tools"
     echo "  - User set to abc (not root) for security"
     echo "  - Home directory set to /config"
+    echo "  - Terminals spawn as login shells (loads .bashrc)"
 else
     echo "Agent-OS server.ts not found, skipping patch"
 fi
