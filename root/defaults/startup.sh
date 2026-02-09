@@ -59,6 +59,11 @@ else
     else
         echo "✓ Agent-OS is up to date (v$CURRENT_VERSION)"
     fi
+
+    # Patch Agent-OS to use bash instead of zsh (container doesn't have zsh)
+    if [ -f /defaults/patch-agent-os.sh ]; then
+        source /defaults/patch-agent-os.sh
+    fi
 fi
 
 # Install OpenAI Codex if not already functional
