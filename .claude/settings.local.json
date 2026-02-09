@@ -42,9 +42,16 @@
       "Bash(kill:*)",
       "Bash(/config/.npm-global/bin/claude-code-ui:*)",
       "Bash(node -e \"const p = require\\(''/config/.npm-global/lib/node_modules/@siteboon/claude-code-ui/package.json''\\); console.log\\(p.version\\)\")",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(s6-svc:*)",
+      "Bash(sudo s6-svc:*)",
+      "Bash(pgrep:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "komodo"
+  ]
 }

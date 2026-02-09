@@ -67,8 +67,7 @@ Base image services (init-adduser, init-config, init-mods-end)
 - Runs as **user `abc`**, longrun service
 - Serves Agent-OS mobile-first web UI on port 3011
 - Auto-updates checked on container startup
-- **Known limitation**: Terminal sessions don't work properly when run as a service (EBADF errors)
-- For full functionality, run Agent-OS manually from a terminal inside code-server
+- Patched at startup for container compatibility (bash shell, expanded PATH, user abc, login shells, PTY grace period)
 
 ### Critical: Service Bundle Integration
 
@@ -170,5 +169,6 @@ npm packages: `@saadnvd1/agent-os`, `@openai/codex`, `@google/gemini-cli`
 - **Claude Code auth fails**: Run `claude setup-token`. Check `/config/.claude/` ownership.
 - **Docker permission denied**: Verify socket is mounted, check `groups` shows `docker`.
 - **Agent-OS not accessible**: Check service is running: `docker exec code-server-claude agent-os status`. Port 3011 must be exposed in docker-compose.yml.
-- **Agent-OS terminal sessions failing**: Terminal sessions now work after installing tmux and patching the shell/PATH configuration.
-- **Agent-OS delete buttons not working**: The delete buttons in the UI don't work (frontend bug). Workaround: Use the API directly via curl, e.g., `curl -X DELETE http://localhost:3011/api/projects/PROJECT_ID` or `curl -X DELETE http://localhost:3011/api/sessions/SESSION_ID`
+- **Agent-OS terminal sessions failing**: Terminal sessions now work after installing tmux and patching the shell/PATH configuration. PTY processes have a 5-minute grace period on WebSocket disconnect to prevent Claude Code sessions from dying during brief network interruptions.
+- **Agent-OS menu actions not working**: If delete/rename buttons stop working after an Agent-OS update, re-run `patch-agent-os.sh`. The patch fixes Radix UI menu items to use `onSelect` instead of `onClick` (which fails on mobile/touch). API fallback: `curl -X DELETE http://localhost:3011/api/projects/PROJECT_ID`
+- **Agent-OS move session to project not working**: The upstream session PATCH API is missing `projectId` handling. The `patch-agent-os.sh` script adds this. After patching, rebuild Next.js and restart Agent-OS.

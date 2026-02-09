@@ -27,10 +27,10 @@ if [ ! -d /config/.agent-os/repo ]; then
     sleep 10
 fi
 
+# Kill any lingering process on port 3011 before starting
+fuser -k 3011/tcp 2>/dev/null || true
+sleep 1
+
 # Start Agent-OS server in foreground mode
 echo "Starting Agent-OS web server on port 3011..."
-
-# Note: Terminal sessions may have issues when running as a service
-# Agent-OS works best when run interactively from a terminal
-# The web UI will work, but terminal connections may fail with EBADF errors
 exec s6-setuidgid abc agent-os start-foreground
