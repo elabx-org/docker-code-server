@@ -9,6 +9,8 @@ cd /config || exit 1
 # Export PATH to include npm global binaries
 export PATH="/config/.npm-global/bin:$PATH"
 export HOME="/config"
+export AGENT_OS_HOME="/config/.agent-os"
+export AGENT_OS_PORT="3011"
 
 # Wait for Agent-OS to be installed (startup script runs first)
 until [ -x /config/.npm-global/bin/agent-os ]; do
@@ -22,6 +24,6 @@ if [ ! -d /config/.agent-os/repo ]; then
     sleep 10
 fi
 
-# Start Agent-OS server
+# Start Agent-OS server in foreground mode (required for s6 longrun services)
 echo "Starting Agent-OS web server on port 3011..."
-exec s6-setuidgid abc agent-os start
+exec s6-setuidgid abc agent-os start-foreground
