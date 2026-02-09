@@ -34,7 +34,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 # Install xdg-utils for browser helper support in containerized environment
 RUN apt-get update && \
     apt-get install -y build-essential python3 python3-pip python3-venv xdg-utils jq \
-    ripgrep fd-find tree shellcheck unzip zip htop strace iproute2 less && \
+    ripgrep fd-find tree shellcheck unzip zip htop strace iproute2 less tmux && \
     rm -rf /var/lib/apt/lists/* && \
     pip3 install --no-cache-dir --break-system-packages openai playwright && \
     npm install -g playwright && \
