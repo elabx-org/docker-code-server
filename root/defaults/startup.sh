@@ -47,7 +47,7 @@ fi
 
 if [ ! -x /config/.npm-global/bin/agent-os ]; then
     echo "Installing Agent-OS to /config/.npm-global..."
-    npm install -g "$AGENT_OS_PKG" 2>&1 | tail -20
+    npm install -g "$AGENT_OS_PKG" --legacy-peer-deps 2>&1 | tail -20
 
     # Verify installation succeeded
     if [ -x /config/.npm-global/bin/agent-os ]; then
@@ -65,7 +65,7 @@ else
 
     if [ -n "$CURRENT_VERSION" ] && [ -n "$LATEST_VERSION" ] && [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
         echo "Updating Agent-OS from $CURRENT_VERSION to $LATEST_VERSION..."
-        npm update -g "$AGENT_OS_PKG" 2>&1 | tail -20
+        npm update -g "$AGENT_OS_PKG" --legacy-peer-deps 2>&1 | tail -20
         echo "✓ Agent-OS updated to $LATEST_VERSION"
     else
         echo "✓ Agent-OS is up to date (v$CURRENT_VERSION)"
