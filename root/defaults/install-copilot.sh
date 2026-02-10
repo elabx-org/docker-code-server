@@ -108,6 +108,21 @@ install_extension() {
     return 0
 }
 
+# Get installed version of an extension (empty if not installed)
+get_installed_version() {
+    local extension_id="$1"
+    local user_data_dir="$2"
+    local list_cmd
+
+    if [ -n "$user_data_dir" ]; then
+        list_cmd="$CODE_SERVER_BIN --user-data-dir=$user_data_dir --list-extensions --show-versions"
+    else
+        list_cmd="$CODE_SERVER_BIN --list-extensions --show-versions"
+    fi
+
+    $list_cmd 2>/dev/null | grep -i "^${extension_id}@" | sed "s/.*@//"
+}
+
 # Main installation function
 install_copilot_extensions() {
     echo "GitHub Copilot Extensions Installer"
@@ -146,14 +161,23 @@ install_copilot_extensions() {
     for ext in $EXTENSIONS; do
         echo "Processing $ext..."
 
-        # Find compatible version
+        # Check if already installed
+        installed_version="$(get_installed_version "$ext" "$USER_DATA_DIR")"
+
+        # Find compatible version from marketplace
         version="$(find_compatible_version "$ext" "$VSCODE_VERSION")"
 
         if [ -z "$version" ]; then
             echo "  ✗ No compatible version found for $ext"
             FAILED="$((FAILED + 1))"
+        elif [ "$installed_version" = "$version" ]; then
+            echo "  ✓ Already up to date (v$version)"
         else
-            echo "  Found compatible version: $version"
+            if [ -n "$installed_version" ]; then
+                echo "  Updating from v$installed_version to v$version..."
+            else
+                echo "  Found compatible version: $version"
+            fi
             if ! install_extension "$ext" "$version" "$USER_DATA_DIR"; then
                 FAILED="$((FAILED + 1))"
             fi
