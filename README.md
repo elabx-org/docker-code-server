@@ -65,7 +65,7 @@ docker run -d \
   -v /path/to/workspace:/config/workspace \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   --restart unless-stopped \
-  ghcr.io/yourusername/docker-code-server:latest
+  ghcr.io/elabx-org/docker-code-server:latest
 ```
 
 ## Environment Variables
@@ -151,17 +151,14 @@ export GOOGLE_API_KEY=your-key
 gemini
 ```
 
-### Happy Coder (Mobile Monitoring)
+### Agent-OS (Mobile-First AI Session Manager)
 
-```bash
-# Pair with mobile app
-happy --auth
+Agent-OS starts automatically on port 3011 and provides a mobile-first web UI for managing multiple concurrent AI coding sessions.
 
-# Use instead of claude for remote monitoring
-happy
-```
-
-Download the mobile app: [iOS App Store](https://apps.apple.com/app/happy-coder) or https://app.happy.engineering
+- Access at `http://your-server:3011`
+- Create and manage Claude Code, Codex, or Gemini sessions
+- View session output, attach to terminals, and monitor status
+- Move sessions between projects, rename, and fork sessions
 
 ### GitHub Copilot
 
@@ -231,7 +228,8 @@ The GitHub workflow automatically:
 - **Permission issues**: Adjust `PUID`/`PGID` to match your user
 - **Extensions not installing**: Check IDs against [Open VSX](https://open-vsx.org/)
 - **OAuth not working**: Set `CODE_SERVER_URL` in your `.env` file
-- **Agent-OS terminal sessions not working**: Terminal connections fail when Agent-OS runs as a service due to PTY allocation issues. **Workaround**: Run Agent-OS manually from a terminal inside code-server instead of relying on the service
+- **Agent-OS not accessible**: Verify port 3011 is exposed. Check service: `docker exec code-server-claude s6-svstat /run/service/svc-agent-os`
+- **Agent-OS terminal sessions failing**: The `@elabx-org/agent-os` fork includes container compatibility fixes (bash shell, expanded PATH, login shells). PTY processes have a 5-minute grace period on WebSocket disconnect.
 - **Check logs**: `docker logs code-server-claude`
 
 ## License
@@ -243,3 +241,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [LinuxServer.io](https://linuxserver.io/) for the excellent base image
 - [Anthropic](https://anthropic.com/) for Claude Code
 - [Siteboon](https://github.com/siteboon/claudecodeui) for Claude Code UI
+- [saadnvd1](https://github.com/saadnvd1/agent-os) for the original Agent-OS (forked as [@elabx-org/agent-os](https://github.com/elabx-org/agent-os))

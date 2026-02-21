@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   code-server-claude:
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/docker-code-server}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-elabx-org/docker-code-server}:latest
     container_name: code-server-claude
     environment:
       - PUID=${PUID:-1000}  # Pass through host user ID or default to 1000
